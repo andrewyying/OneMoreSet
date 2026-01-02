@@ -1,5 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import {
+  Alert,
+  FlatList,
+  Modal,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Audio } from 'expo-av';
@@ -36,6 +45,13 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
     }
     return buildPhases({ steps: schedule.steps, restBetweenSec: schedule.restBetweenSec });
   }, [schedule]);
+  const exercisePhases = useMemo(
+    () =>
+      phases
+        .map((phase, phaseIndex) => ({ ...phase, phaseIndex }))
+        .filter((phase) => phase.type === 'exercise'),
+    [phases],
+  );
   const { width } = useWindowDimensions();
   const isNarrow = width < 380;
   const timerFontSize = Math.max(48, Math.min(88, width * 0.18));
@@ -48,6 +64,7 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
   const lastStatusRef = useRef<TimerStatus>(timerState.status);
   const lastCountdownBeepRef = useRef<number | null>(null);
   const halfCueIndexRef = useRef<number | null>(null);
+  const [showExercises, setShowExercises] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -322,15 +339,16 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
           </View>
         </View>
 
-        {upcomingStep ? (
-          <View style={styles.nextRow}>
-            <Text style={styles.previewLabel}>Next</Text>
-            <Text style={styles.previewTitle}>{upcomingStep.label}</Text>
-            <Text style={styles.previewMeta}>{formatSeconds(upcomingStep.durationSec)}</Text>
-          </View>
-        ) : null}
-
-        {isFinished ? <Text style={styles.finishedText}>Workout complete</Text> : null}
+        <TouchableOpacity style={styles.nextRow} onPress={() => setShowExercises(true)} activeOpacity={0.8}>
+          <Text style={styles.previewLabel}>Next</Text>
+          {upcomingStep ? (
+            <>
+              <Text style={styles.previewTitle}>{upcomingStep.label}</Text>
+            </>
+          ) : (
+            <Text style={styles.previewTitle}>Finish</Text>
+          )}
+        </TouchableOpacity>
 
         <View style={[styles.controlsRow, isNarrow && styles.controlsRowNarrow]}>
           <PrimaryButton
@@ -376,6 +394,77 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
           />
         </View>
       </View>
+
+      <Modal
+        visible={showExercises}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setShowExercises(false)}
+      >
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowExercises(false)}>
+          <TouchableOpacity activeOpacity={1} style={styles.sheet}>
+            <View style={styles.sheetHandle} />
+            <Text style={styles.sheetTitle}>Exercises</Text>
+            <FlatList
+              data={exercisePhases}
+              keyExtractor={(item) => `${item.phaseIndex}`}
+              renderItem={({ item }) => {
+                const isDone = item.phaseIndex < timerState.currentStepIndex || timerState.status === 'finished';
+                const isCurrent = item.phaseIndex === timerState.currentStepIndex;
+                return (
+                  <TouchableOpacity
+                    style={styles.exerciseRow}
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      setShowExercises(false);
+                      setTimerState((prev) => ({
+                        ...prev,
+                        status: 'paused',
+                        currentStepIndex: item.phaseIndex,
+                        remainingMs: phases[item.phaseIndex]?.durationSec
+                          ? phases[item.phaseIndex].durationSec * 1000
+                          : 0,
+                        stepStartedAt: null,
+                        pausedRemainingMs: phases[item.phaseIndex]?.durationSec
+                          ? phases[item.phaseIndex].durationSec * 1000
+                          : 0,
+                      }));
+                    }}
+                  >
+                    <View style={styles.exerciseText}>
+                      <Text style={styles.exerciseLabel} numberOfLines={1}>
+                        {item.label}
+                      </Text>
+                      <Text style={styles.exerciseMeta}>{formatSeconds(item.durationSec)}</Text>
+                    </View>
+                    <View
+                      style={[
+                        styles.statusPill,
+                        isDone && styles.statusDone,
+                        isCurrent && !isDone && styles.statusCurrent,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.statusText,
+                          isDone && styles.statusDoneText,
+                          isCurrent && !isDone && styles.statusCurrentText,
+                        ]}
+                      >
+                        {isDone ? 'Done' : isCurrent ? 'Current' : 'Upcoming'}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              }}
+              ItemSeparatorComponent={() => <View style={styles.exerciseDivider} />}
+              ListEmptyComponent={
+                <Text style={styles.emptyExercises}>No exercises in this workout.</Text>
+              }
+            />
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -508,6 +597,87 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 48,
     marginHorizontal: 6,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    justifyContent: 'flex-end',
+  },
+  sheet: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 24,
+    maxHeight: '60%',
+  },
+  sheetHandle: {
+    width: 48,
+    height: 5,
+    borderRadius: 999,
+    backgroundColor: '#e5e7eb',
+    alignSelf: 'center',
+    marginBottom: 12,
+  },
+  sheetTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#0f172a',
+    marginBottom: 12,
+  },
+  exerciseRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+  },
+  exerciseText: {
+    flex: 1,
+    marginRight: 12,
+  },
+  exerciseLabel: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  exerciseMeta: {
+    color: '#475569',
+    marginTop: 2,
+  },
+  statusPill: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  statusDone: {
+    backgroundColor: '#e5e7eb',
+    borderColor: '#e5e7eb',
+  },
+  statusCurrent: {
+    backgroundColor: '#0ea5e9',
+    borderColor: '#0ea5e9',
+  },
+  statusText: {
+    fontWeight: '700',
+    color: '#475569',
+  },
+  statusDoneText: {
+    color: '#0f172a',
+  },
+  statusCurrentText: {
+    color: '#fff',
+  },
+  exerciseDivider: {
+    height: 1,
+    backgroundColor: '#e5e7eb',
+  },
+  emptyExercises: {
+    textAlign: 'center',
+    paddingVertical: 12,
+    color: '#475569',
   },
 });
 
