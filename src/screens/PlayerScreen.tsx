@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Alert, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Audio } from 'expo-av';
 import * as Haptics from 'expo-haptics';
+import Svg, { Circle } from 'react-native-svg';
 
 import PrimaryButton from '../components/PrimaryButton';
 import { buildPhases, formatSeconds, Phase } from '../lib/time';
@@ -231,10 +232,7 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
   const stepDurationMs = currentStep ? currentStep.durationSec * 1000 : 0;
   const progress = stepDurationMs > 0 ? Math.min(1, 1 - timerState.remainingMs / stepDurationMs) : 0;
   const remainingSec = Math.max(0, Math.ceil(timerState.remainingMs / 1000));
-  const totalRemainingSec = useMemo(
-    () => Math.max(0, Math.ceil(getTotalRemainingMs(phases, timerState) / 1000)),
-    [phases, timerState],
-  );
+  const progressPercent = stepDurationMs > 0 ? Math.min(1, 1 - timerState.remainingMs / stepDurationMs) : 0;
 
   const handlePrimaryControl = () => {
     const now = Date.now();
@@ -250,9 +248,24 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
     }
   };
 
-  const handleRestart = () => setTimerState(restartTimer(phases, Date.now()));
+  const handleRestart = () => {
+    Alert.alert('Restart workout', 'Start this workout from the beginning?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Restart',
+        style: 'destructive',
+        onPress: () => setTimerState(restartTimer(phases, Date.now())),
+      },
+    ]);
+  };
   const handleNext = () => setTimerState((prev) => nextStep(prev, phases, Date.now()));
   const handlePrev = () => setTimerState((prev) => previousStep(prev, phases, Date.now()));
+  const handleEnd = () => {
+    Alert.alert('End workout', 'End this workout and return?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'End', style: 'destructive', onPress: () => navigation.goBack() },
+    ]);
+  };
 
   if (!schedule) {
     return (
@@ -267,44 +280,57 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
   const isPaused = timerState.status === 'paused';
   const isFinished = timerState.status === 'finished';
   const primaryLabel = isRunning ? 'Pause' : isPaused ? 'Resume' : 'Start';
+  const radius = Math.min(width * 0.35, 140);
+  const strokeWidth = 12;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference * (1 - progressPercent);
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
         <Text style={styles.scheduleName}>{schedule.name}</Text>
         <Text style={styles.currentLabel}>{currentStep?.label ?? 'No exercises'}</Text>
-        <View style={styles.timerRow}>
-          <Text style={[styles.timerText, { fontSize: timerFontSize }]}>{formatSeconds(remainingSec)}</Text>
-          {currentStep ? (
-            <Text style={styles.typeBadge}>{currentStep.type.toUpperCase()}</Text>
-          ) : null}
+
+        <View style={styles.circleWrapper}>
+          <Svg width={(radius + strokeWidth) * 2} height={(radius + strokeWidth) * 2}>
+            <Circle
+              cx={radius + strokeWidth}
+              cy={radius + strokeWidth}
+              r={radius}
+              stroke="#e5e7eb"
+              strokeWidth={strokeWidth}
+              fill="none"
+            />
+            <Circle
+              cx={radius + strokeWidth}
+              cy={radius + strokeWidth}
+              r={radius}
+              stroke="#0ea5e9"
+              strokeWidth={strokeWidth}
+              strokeDasharray={circumference}
+              strokeDashoffset={strokeDashoffset}
+              strokeLinecap="round"
+              fill="none"
+              rotation={-90}
+              originX={radius + strokeWidth}
+              originY={radius + strokeWidth}
+            />
+          </Svg>
+          <View style={styles.circleCenter}>
+            <Text style={[styles.timerText, { fontSize: timerFontSize }]}>{formatSeconds(remainingSec)}</Text>
+            {currentStep ? <Text style={styles.typeBadge}>{currentStep.type.toUpperCase()}</Text> : null}
+          </View>
         </View>
 
-        <View style={styles.progressTrack}>
-          <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
-        </View>
-
-        <View style={[styles.previewRow, isNarrow && styles.previewRowNarrow]}>
-          <View style={[styles.previewCard, isNarrow ? styles.previewCardNarrow : styles.previewSpacing]}>
+        {upcomingStep ? (
+          <View style={styles.nextRow}>
             <Text style={styles.previewLabel}>Next</Text>
-            {upcomingStep ? (
-              <>
-                <Text style={styles.previewTitle}>{upcomingStep.label}</Text>
-                <Text style={styles.previewMeta}>{formatSeconds(upcomingStep.durationSec)}</Text>
-              </>
-            ) : (
-              <Text style={styles.previewTitle}>Last step</Text>
-            )}
+            <Text style={styles.previewTitle}>{upcomingStep.label}</Text>
+            <Text style={styles.previewMeta}>{formatSeconds(upcomingStep.durationSec)}</Text>
           </View>
-          <View style={[styles.previewCard, isNarrow && styles.previewCardNarrow]}>
-            <Text style={styles.previewLabel}>Total remaining</Text>
-            <Text style={styles.previewTitle}>{formatSeconds(totalRemainingSec)}</Text>
-          </View>
-        </View>
-
-        {isFinished ? (
-          <Text style={styles.finishedText}>Workout complete</Text>
         ) : null}
+
+        {isFinished ? <Text style={styles.finishedText}>Workout complete</Text> : null}
 
         <View style={[styles.controlsRow, isNarrow && styles.controlsRowNarrow]}>
           <PrimaryButton
@@ -322,7 +348,7 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
             onPress={handlePrimaryControl}
             disabled={phases.length === 0}
             style={[
-              styles.controlButton,
+              styles.primaryControl,
               isNarrow ? styles.controlSpacingVertical : styles.controlSpacing,
             ]}
           />
@@ -335,15 +361,19 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
           />
         </View>
 
-        <View style={[styles.secondaryRow, isNarrow && styles.controlsRowNarrow]}>
+        <View style={styles.secondaryRow}>
           <PrimaryButton
             label="Restart"
             variant="ghost"
             onPress={handleRestart}
-            disabled={phases.length === 0}
-            style={isNarrow ? styles.controlSpacingVertical : styles.controlSpacing}
+            style={styles.secondaryButton}
           />
-          <PrimaryButton label="Quit" variant="ghost" onPress={() => navigation.goBack()} />
+          <PrimaryButton
+            label="End"
+            variant="ghost"
+            onPress={handleEnd}
+            style={styles.secondaryButton}
+          />
         </View>
       </View>
     </SafeAreaView>
@@ -358,6 +388,14 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     padding: 16,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  backButton: {
+    marginTop: 12,
   },
   scheduleName: {
     fontSize: 18,
@@ -401,27 +439,15 @@ const styles = StyleSheet.create({
     height: '100%',
     backgroundColor: '#0ea5e9',
   },
-  previewRow: {
-    flexDirection: 'row',
-    marginBottom: 16,
+  circleWrapper: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 12,
   },
-  previewRowNarrow: {
-    flexDirection: 'column',
-  },
-  previewSpacing: {
-    marginRight: 12,
-  },
-  previewCardNarrow: {
-    width: '100%',
-    marginBottom: 12,
-  },
-  previewCard: {
-    flex: 1,
-    padding: 12,
-    borderRadius: 12,
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
+  circleCenter: {
+    position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   previewLabel: {
     fontSize: 13,
@@ -438,6 +464,10 @@ const styles = StyleSheet.create({
     color: '#475569',
     marginTop: 2,
   },
+  nextRow: {
+    alignItems: 'center',
+    marginBottom: 16,
+  },
   finishedText: {
     textAlign: 'center',
     color: '#0f172a',
@@ -446,26 +476,37 @@ const styles = StyleSheet.create({
   },
   controlsRow: {
     flexDirection: 'row',
-    marginBottom: 12,
+    marginBottom: 20,
+    paddingHorizontal: 8,
   },
   controlsRowNarrow: {
     flexDirection: 'column',
   },
   controlButton: {
     flex: 1,
+    minHeight: 52,
   },
   controlSpacing: {
-    marginRight: 10,
+    marginRight: 12,
   },
   controlSpacingVertical: {
-    marginBottom: 10,
+    marginBottom: 12,
     marginRight: 0,
+  },
+  primaryControl: {
+    flex: 1.4,
+    minHeight: 60,
   },
   secondaryRow: {
     flexDirection: 'row',
-  },
-  backButton: {
+    justifyContent: 'center',
     marginTop: 12,
+    paddingHorizontal: 24,
+  },
+  secondaryButton: {
+    flex: 1,
+    minHeight: 48,
+    marginHorizontal: 6,
   },
 });
 
