@@ -165,16 +165,22 @@ const ScheduleEditorScreen: React.FC<Props> = ({ navigation, route }) => {
           onChangeText={setName}
         />
 
+        <View style={styles.summaryRow}>
+          <Text style={styles.summaryBadge}>{steps.length} exercises</Text>
+          <Text style={styles.summaryBadge}>{formatSeconds(totalDuration)}</Text>
+        </View>
+
         <View style={styles.restRow}>
           <Pressable onPress={() => setRestEnabled((prev) => !prev)} style={styles.checkboxRow}>
             <View style={[styles.checkbox, restEnabled && styles.checkboxChecked]}>
               {restEnabled ? <Text style={styles.checkboxMark}>✓</Text> : null}
             </View>
-            <Text style={styles.checkboxLabel}>Add rest between exercises</Text>
+            <Text style={styles.checkboxLabel} numberOfLines={1} ellipsizeMode="tail">
+              Add breaks in between
+            </Text>
           </Pressable>
           {restEnabled ? (
             <DurationInput
-              label="Rest"
               value={restBetweenSec}
               min={1}
               max={600}
@@ -184,10 +190,6 @@ const ScheduleEditorScreen: React.FC<Props> = ({ navigation, route }) => {
           ) : null}
         </View>
 
-        <View style={styles.summaryRow}>
-          <Text style={styles.summaryBadge}>{steps.length} exercises</Text>
-          <Text style={styles.summaryBadge}>{formatSeconds(totalDuration)}</Text>
-        </View>
 
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
@@ -200,7 +202,6 @@ const ScheduleEditorScreen: React.FC<Props> = ({ navigation, route }) => {
             onChange={handleChangeStep}
             onMoveUp={(idx) => moveStep(idx, idx - 1)}
             onMoveDown={(idx) => moveStep(idx, idx + 1)}
-            onDuplicate={duplicateStep}
             onDelete={deleteStep}
           />
         ))}
@@ -264,10 +265,14 @@ const styles = StyleSheet.create({
   },
   restRow: {
     marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   checkboxRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
+    marginVertical: 15,
   },
   checkbox: {
     width: 22,
@@ -291,9 +296,15 @@ const styles = StyleSheet.create({
   checkboxLabel: {
     fontWeight: '600',
     color: '#0f172a',
+    marginRight: 8,
+    flexShrink: 1,
+    flexGrow: 1,
+    minWidth: 0,
   },
   restInput: {
-    marginTop: 8,
+    marginLeft: 15,
+    width: 100,
+    flexShrink: 0,
   },
   footerSpace: {
     height: 32,

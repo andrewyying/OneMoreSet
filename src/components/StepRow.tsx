@@ -1,5 +1,6 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 
 import { Step } from '../types/models';
 import DurationInput from './DurationInput';
@@ -11,7 +12,6 @@ type Props = {
   onChange: (index: number, updated: Step) => void;
   onMoveUp: (index: number) => void;
   onMoveDown: (index: number) => void;
-  onDuplicate: (index: number) => void;
   onDelete: (index: number) => void;
 };
 
@@ -22,7 +22,6 @@ const StepRow: React.FC<Props> = ({
   onChange,
   onMoveUp,
   onMoveDown,
-  onDuplicate,
   onDelete,
 }) => {
   const setField = <K extends keyof Step>(field: K, value: Step[K]) => {
@@ -48,11 +47,12 @@ const StepRow: React.FC<Props> = ({
           >
             <Text style={styles.iconText}>↓</Text>
           </Pressable>
-          <Pressable onPress={() => onDuplicate(index)} style={styles.linkButton}>
-            <Text style={styles.linkText}>Duplicate</Text>
-          </Pressable>
-          <Pressable onPress={() => onDelete(index)} style={styles.linkButton}>
-            <Text style={[styles.linkText, styles.dangerText]}>Delete</Text>
+          <Pressable
+            onPress={() => onDelete(index)}
+            hitSlop={8}
+            style={({ pressed }) => [styles.trashButton, pressed && styles.trashPressed]}
+          >
+            <MaterialIcons name="delete-outline" size={22} color="#9ca3af" />
           </Pressable>
         </View>
       </View>
@@ -65,18 +65,17 @@ const StepRow: React.FC<Props> = ({
       />
 
       <DurationInput
-        label="Duration"
+        label="Duration (seconds)"
         value={step.durationSec}
         onChange={(value) => setField('durationSec', value)}
         style={styles.duration}
       />
 
       <DurationInput
-        label="Repeats"
+        label="Repeats (times)"
         value={step.repeatCount}
         min={1}
         max={99}
-        suffix="x"
         onChange={(value) => setField('repeatCount', value)}
         style={styles.duration}
       />
@@ -133,16 +132,11 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#0f172a',
   },
-  linkButton: {
-    paddingHorizontal: 6,
-    paddingVertical: 4,
+  trashButton: {
+    padding: 6,
   },
-  linkText: {
-    color: '#0f172a',
-    fontWeight: '600',
-  },
-  dangerText: {
-    color: '#b91c1c',
+  trashPressed: {
+    opacity: 0.7,
   },
   input: {
     borderWidth: 1,

@@ -8,7 +8,6 @@ type Props = {
   value: number;
   min?: number;
   max?: number;
-  suffix?: string;
   onChange: (value: number) => void;
   style?: StyleProp<ViewStyle>;
 };
@@ -18,7 +17,6 @@ const DurationInput: React.FC<Props> = ({
   value,
   min = 1,
   max = 3600,
-  suffix = 'sec',
   onChange,
   style,
 }) => {
@@ -39,7 +37,11 @@ const DurationInput: React.FC<Props> = ({
 
   return (
     <View style={[styles.container, style]}>
-      {label ? <Text style={styles.label}>{label}</Text> : null}
+      {label ? (
+        <Text style={styles.label} numberOfLines={1} ellipsizeMode="tail">
+          {label}
+        </Text>
+      ) : null}
       <View style={styles.controls}>
         <Pressable style={styles.stepper} onPress={() => adjust(-1)}>
           <Text style={styles.stepperText}>-</Text>
@@ -53,7 +55,6 @@ const DurationInput: React.FC<Props> = ({
         <Pressable style={styles.stepper} onPress={() => adjust(1)}>
           <Text style={styles.stepperText}>+</Text>
         </Pressable>
-        <Text style={styles.suffix}>{suffix}</Text>
       </View>
     </View>
   );
@@ -62,15 +63,20 @@ const DurationInput: React.FC<Props> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   label: {
     fontWeight: '600',
-    marginBottom: 6,
+    marginRight: 8,
     color: '#0f172a',
+    flexShrink: 1,
   },
   controls: {
     flexDirection: 'row',
     alignItems: 'center',
+    width: 170,
+    marginLeft: 'auto',
   },
   stepper: {
     width: 36,
@@ -95,11 +101,7 @@ const styles = StyleSheet.create({
     borderColor: '#e5e7eb',
     fontSize: 16,
     color: '#0f172a',
-  },
-  suffix: {
-    marginLeft: 4,
-    color: '#475569',
-    fontWeight: '600',
+    textAlign: 'center',
   },
 });
 

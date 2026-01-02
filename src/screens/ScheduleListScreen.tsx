@@ -11,6 +11,7 @@ import {
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useWindowDimensions } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 
 import PrimaryButton from '../components/PrimaryButton';
 import { generateId } from '../lib/ids';
@@ -22,7 +23,7 @@ import { Schedule } from '../types/models';
 type Props = NativeStackScreenProps<RootStackParamList, 'ScheduleList'>;
 
 const ScheduleListScreen: React.FC<Props> = ({ navigation }) => {
-  const { schedules, createSchedule, deleteSchedule, duplicateSchedule } = useSchedules();
+  const { schedules, createSchedule, deleteSchedule } = useSchedules();
   const { width } = useWindowDimensions();
   const isNarrow = width < 380;
 
@@ -56,14 +57,6 @@ const ScheduleListScreen: React.FC<Props> = ({ navigation }) => {
     ]);
   };
 
-  const handleDuplicate = (id: string) => {
-    const copyId = duplicateSchedule(id);
-
-    if (copyId) {
-      navigation.navigate('ScheduleEditor', { scheduleId: copyId });
-    }
-  };
-
   const renderItem: ListRenderItem<Schedule> = ({ item }) => {
     const totalDuration = getTotalDuration({ steps: item.steps, restBetweenSec: item.restBetweenSec });
     const exerciseCount = item.steps.reduce((sum, step) => sum + Math.max(1, step.repeatCount), 0);
@@ -80,24 +73,19 @@ const ScheduleListScreen: React.FC<Props> = ({ navigation }) => {
           <Text style={styles.cardMeta}>
             {exerciseCount} exercises · {formatSeconds(totalDuration)}
           </Text>
+          <Pressable
+            onPress={() => confirmDelete(item.id, item.name)}
+            hitSlop={8}
+            style={({ pressed }) => [styles.trashTopRight, pressed && styles.cardPressed]}
+          >
+            <MaterialIcons name="delete-outline" size={22} color="#9ca3af" />
+          </Pressable>
         </View>
         <View style={styles.cardActions}>
           <PrimaryButton
             label="Start"
             variant="ghost"
             onPress={() => navigation.navigate('Player', { scheduleId: item.id })}
-            style={[styles.actionButton, styles.actionSpacing]}
-          />
-          <PrimaryButton
-            label="Duplicate"
-            variant="secondary"
-            onPress={() => handleDuplicate(item.id)}
-            style={[styles.actionButton, styles.actionSpacing]}
-          />
-          <PrimaryButton
-            label="Delete"
-            variant="danger"
-            onPress={() => confirmDelete(item.id, item.name)}
             style={styles.actionButton}
           />
         </View>
@@ -192,6 +180,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
     elevation: 2,
+    position: 'relative',
   },
   cardPressed: {
     opacity: 0.9,
@@ -211,12 +200,16 @@ const styles = StyleSheet.create({
   cardActions: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
   actionButton: {
     flex: 1,
   },
-  actionSpacing: {
-    marginRight: 8,
+  trashTopRight: {
+    position: 'absolute',
+    right: 4,
+    top: 4,
+    padding: 6,
   },
   emptyState: {
     alignItems: 'center',
