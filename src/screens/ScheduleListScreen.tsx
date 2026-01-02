@@ -1,0 +1,241 @@
+import React from 'react';
+import {
+  Alert,
+  FlatList,
+  ListRenderItem,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useWindowDimensions } from 'react-native';
+
+import PrimaryButton from '../components/PrimaryButton';
+import { generateId } from '../lib/ids';
+import { formatSeconds, getTotalDuration } from '../lib/time';
+import { useSchedules } from '../store/schedules';
+import { RootStackParamList } from '../types/navigation';
+import { Schedule } from '../types/models';
+
+type Props = NativeStackScreenProps<RootStackParamList, 'ScheduleList'>;
+
+const ScheduleListScreen: React.FC<Props> = ({ navigation }) => {
+  const { schedules, createSchedule, deleteSchedule, duplicateSchedule } = useSchedules();
+  const { width } = useWindowDimensions();
+  const isNarrow = width < 380;
+
+  const handleCreateSchedule = () => {
+    const newId = createSchedule({
+      name: 'New Schedule',
+      steps: [
+        {
+          id: generateId('step'),
+          label: 'Step 1',
+          type: 'exercise',
+          durationSec: 30,
+        },
+      ],
+    });
+
+    if (newId) {
+      navigation.navigate('ScheduleEditor', { scheduleId: newId });
+    }
+  };
+
+  const confirmDelete = (id: string, name: string) => {
+    Alert.alert('Delete schedule', `Delete "${name}"?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => deleteSchedule(id),
+      },
+    ]);
+  };
+
+  const handleDuplicate = (id: string) => {
+    const copyId = duplicateSchedule(id);
+
+    if (copyId) {
+      navigation.navigate('ScheduleEditor', { scheduleId: copyId });
+    }
+  };
+
+  const renderItem: ListRenderItem<Schedule> = ({ item }) => {
+    const totalDuration = getTotalDuration(item.steps);
+
+    return (
+      <Pressable
+        style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+        onPress={() => navigation.navigate('ScheduleEditor', { scheduleId: item.id })}
+      >
+        <View style={styles.cardHeader}>
+          <Text style={styles.cardTitle} numberOfLines={1}>
+            {item.name}
+          </Text>
+          <Text style={styles.cardMeta}>
+            {item.steps.length} steps · {formatSeconds(totalDuration)}
+          </Text>
+        </View>
+        <View style={styles.cardActions}>
+          <PrimaryButton
+            label="Start"
+            variant="ghost"
+            onPress={() => navigation.navigate('Player', { scheduleId: item.id })}
+            style={[styles.actionButton, styles.actionSpacing]}
+          />
+          <PrimaryButton
+            label="Duplicate"
+            variant="secondary"
+            onPress={() => handleDuplicate(item.id)}
+            style={[styles.actionButton, styles.actionSpacing]}
+          />
+          <PrimaryButton
+            label="Delete"
+            variant="danger"
+            onPress={() => confirmDelete(item.id, item.name)}
+            style={styles.actionButton}
+          />
+        </View>
+      </Pressable>
+    );
+  };
+
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <View style={[styles.header, isNarrow && styles.headerNarrow]}>
+        <View style={styles.headerText}>
+          <Text style={styles.title}>Schedules</Text>
+          <Text style={styles.subtitle}>Build and run your workouts.</Text>
+        </View>
+        <PrimaryButton
+          label="New Schedule"
+          onPress={handleCreateSchedule}
+          style={isNarrow ? styles.headerButtonNarrow : undefined}
+        />
+      </View>
+      <FlatList
+        data={schedules}
+        keyExtractor={(item) => item.id}
+        renderItem={renderItem}
+        ItemSeparatorComponent={() => <View style={styles.separator} />}
+        contentContainerStyle={[
+          styles.listContent,
+          schedules.length === 0 ? styles.emptyContent : undefined,
+        ]}
+        ListEmptyComponent={
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyTitle}>No schedules yet</Text>
+            <Text style={styles.emptySubtitle}>Create your first workout to get started.</Text>
+            <PrimaryButton label="Create schedule" onPress={handleCreateSchedule} style={styles.emptyButton} />
+          </View>
+        }
+      />
+    </SafeAreaView>
+  );
+};
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#f8fafc',
+  },
+  header: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  headerNarrow: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+  },
+  headerButtonNarrow: {
+    marginTop: 8,
+    width: '100%',
+  },
+  headerText: {
+    flex: 1,
+    marginRight: 12,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  subtitle: {
+    marginTop: 4,
+    color: '#475569',
+  },
+  listContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 24,
+  },
+  emptyContent: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  separator: {
+    height: 12,
+  },
+  card: {
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    padding: 14,
+    shadowColor: '#0f172a',
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
+  },
+  cardPressed: {
+    opacity: 0.9,
+  },
+  cardHeader: {
+    marginBottom: 12,
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  cardMeta: {
+    marginTop: 4,
+    color: '#475569',
+  },
+  cardActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  actionButton: {
+    flex: 1,
+  },
+  actionSpacing: {
+    marginRight: 8,
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 32,
+    paddingHorizontal: 16,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  emptySubtitle: {
+    marginTop: 6,
+    color: '#475569',
+    textAlign: 'center',
+  },
+  emptyButton: {
+    marginTop: 12,
+    width: '100%',
+  },
+});
+
+export default ScheduleListScreen;
+
