@@ -36,7 +36,7 @@ import { RootStackParamList } from '../types/navigation';
 type Props = NativeStackScreenProps<RootStackParamList, 'Player'>;
 
 const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
-  const { scheduleId } = route.params;
+  const { scheduleId, startWithCountdown = false } = route.params;
   const { schedules } = useSchedules();
   const schedule = schedules.find((item) => item.id === scheduleId);
   const phases = useMemo<Phase[]>(() => {
@@ -65,6 +65,9 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
   const lastCountdownBeepRef = useRef<number | null>(null);
   const halfCueIndexRef = useRef<number | null>(null);
   const [showExercises, setShowExercises] = useState(false);
+  const [preStartCountdown, setPreStartCountdown] = useState<number | null>(null);
+  const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const countdownStartedRef = useRef(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -244,6 +247,43 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
     }
   }, [phases, playHalfSound, timerState.currentStepIndex, timerState.remainingMs, timerState.status]);
 
+  useEffect(() => {
+    if (countdownStartedRef.current) {
+      return;
+    }
+    if (!startWithCountdown || !phases.length) {
+      return;
+    }
+
+    countdownStartedRef.current = true;
+    let count = 3;
+    setPreStartCountdown(count);
+    playBeepSound();
+
+    countdownIntervalRef.current = setInterval(() => {
+      count -= 1;
+      if (count <= 0) {
+        setPreStartCountdown(null);
+        setTimerState(startTimer(phases, Date.now()));
+        playStartSound();
+        if (countdownIntervalRef.current) {
+          clearInterval(countdownIntervalRef.current);
+          countdownIntervalRef.current = null;
+        }
+      } else {
+        setPreStartCountdown(count);
+        playBeepSound();
+      }
+    }, 1000);
+
+    return () => {
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+        countdownIntervalRef.current = null;
+      }
+    };
+  }, [phases, playBeepSound, playStartSound, startWithCountdown]);
+
   const currentStep = phases[timerState.currentStepIndex];
   const upcomingStep = phases[timerState.currentStepIndex + 1];
   const stepDurationMs = currentStep ? currentStep.durationSec * 1000 : 0;
@@ -301,6 +341,14 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
   const strokeWidth = 12;
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference * (1 - progressPercent);
+
+  if (preStartCountdown !== null) {
+    return (
+      <SafeAreaView style={styles.countdownContainer}>
+        <Text style={styles.countdownNumber}>{preStartCountdown}</Text>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -597,6 +645,17 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 48,
     marginHorizontal: 6,
+  },
+  countdownContainer: {
+    flex: 1,
+    backgroundColor: '#0f172a',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  countdownNumber: {
+    fontSize: 96,
+    fontWeight: '800',
+    color: '#fff',
   },
   modalOverlay: {
     flex: 1,

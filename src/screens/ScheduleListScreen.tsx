@@ -85,7 +85,7 @@ const ScheduleListScreen: React.FC<Props> = ({ navigation }) => {
           <PrimaryButton
             label="Start"
             variant="ghost"
-            onPress={() => navigation.navigate('Player', { scheduleId: item.id })}
+            onPress={() => navigation.navigate('Player', { scheduleId: item.id, startWithCountdown: true })}
             style={styles.actionButton}
           />
         </View>
