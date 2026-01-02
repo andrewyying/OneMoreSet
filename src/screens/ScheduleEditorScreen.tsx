@@ -19,6 +19,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import PrimaryButton from '../components/PrimaryButton';
 import StepRow from '../components/StepRow';
+import DurationInput from '../components/DurationInput';
 import { generateId } from '../lib/ids';
 import { clampDuration, formatSeconds, getTotalDuration } from '../lib/time';
 import { useSchedules } from '../store/schedules';
@@ -34,6 +35,8 @@ const ScheduleEditorScreen: React.FC<Props> = ({ navigation, route }) => {
 
   const [name, setName] = useState(schedule?.name ?? '');
   const [steps, setSteps] = useState<Step[]>(schedule?.steps ?? []);
+  const [restEnabled, setRestEnabled] = useState(Boolean(schedule?.restBetweenSec));
+  const [restBetweenSec, setRestBetweenSec] = useState<number>(schedule?.restBetweenSec ?? 0);
   const [error, setError] = useState<string | null>(null);
   const initializedRef = useRef(false);
 
@@ -41,11 +44,16 @@ const ScheduleEditorScreen: React.FC<Props> = ({ navigation, route }) => {
     if (schedule && !initializedRef.current) {
       setName(schedule.name);
       setSteps(schedule.steps);
+      setRestBetweenSec(schedule.restBetweenSec ?? 0);
+      setRestEnabled(Boolean(schedule.restBetweenSec));
       initializedRef.current = true;
     }
   }, [schedule]);
 
-  const totalDuration = useMemo(() => getTotalDuration(steps), [steps]);
+  const totalDuration = useMemo(
+    () => getTotalDuration({ steps, restBetweenSec: restEnabled ? restBetweenSec : 0 }),
+    [restBetweenSec, restEnabled, steps],
+  );
 
   const handleSave = useCallback(() => {
     const sanitizedSteps = steps
@@ -53,7 +61,7 @@ const ScheduleEditorScreen: React.FC<Props> = ({ navigation, route }) => {
         ...step,
         label: step.label.trim() || `Step ${index + 1}`,
         durationSec: clampDuration(step.durationSec),
-        type: step.type,
+        repeatCount: Math.max(1, step.repeatCount),
         color: step.color?.trim() || undefined,
       }))
       .filter((step) => step.durationSec >= 1);
@@ -66,9 +74,13 @@ const ScheduleEditorScreen: React.FC<Props> = ({ navigation, route }) => {
     setError(null);
 
     const nextName = name.trim() || 'Untitled';
-    updateSchedule(scheduleId, { name: nextName, steps: sanitizedSteps });
+    updateSchedule(scheduleId, {
+      name: nextName,
+      steps: sanitizedSteps,
+      restBetweenSec: restEnabled ? clampDuration(restBetweenSec, 0) : 0,
+    });
     navigation.goBack();
-  }, [name, navigation, scheduleId, steps, updateSchedule]);
+  }, [name, navigation, restBetweenSec, restEnabled, scheduleId, steps, updateSchedule]);
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -127,8 +139,8 @@ const ScheduleEditorScreen: React.FC<Props> = ({ navigation, route }) => {
       {
         id: generateId('step'),
         label: `Step ${prev.length + 1}`,
-        type: 'exercise',
         durationSec: 30,
+        repeatCount: 1,
       },
     ]);
   }, []);
@@ -153,8 +165,27 @@ const ScheduleEditorScreen: React.FC<Props> = ({ navigation, route }) => {
           onChangeText={setName}
         />
 
+        <View style={styles.restRow}>
+          <Pressable onPress={() => setRestEnabled((prev) => !prev)} style={styles.checkboxRow}>
+            <View style={[styles.checkbox, restEnabled && styles.checkboxChecked]}>
+              {restEnabled ? <Text style={styles.checkboxMark}>✓</Text> : null}
+            </View>
+            <Text style={styles.checkboxLabel}>Add rest between exercises</Text>
+          </Pressable>
+          {restEnabled ? (
+            <DurationInput
+              label="Rest"
+              value={restBetweenSec}
+              min={1}
+              max={600}
+              onChange={setRestBetweenSec}
+              style={styles.restInput}
+            />
+          ) : null}
+        </View>
+
         <View style={styles.summaryRow}>
-          <Text style={styles.summaryBadge}>{steps.length} steps</Text>
+          <Text style={styles.summaryBadge}>{steps.length} exercises</Text>
           <Text style={styles.summaryBadge}>{formatSeconds(totalDuration)}</Text>
         </View>
 
@@ -230,6 +261,39 @@ const styles = StyleSheet.create({
   },
   addButton: {
     marginTop: 4,
+  },
+  restRow: {
+    marginBottom: 12,
+  },
+  checkboxRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
+    backgroundColor: '#fff',
+  },
+  checkboxChecked: {
+    backgroundColor: '#0ea5e9',
+    borderColor: '#0ea5e9',
+  },
+  checkboxMark: {
+    color: '#fff',
+    fontWeight: '800',
+  },
+  checkboxLabel: {
+    fontWeight: '600',
+    color: '#0f172a',
+  },
+  restInput: {
+    marginTop: 8,
   },
   footerSpace: {
     height: 32,

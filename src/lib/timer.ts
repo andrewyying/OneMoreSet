@@ -1,4 +1,6 @@
-import { Step } from '../types/models';
+export type TimerItem = {
+  durationSec: number;
+};
 
 export type TimerStatus = 'idle' | 'running' | 'paused' | 'finished';
 
@@ -12,10 +14,10 @@ export type TimerState = {
 
 const toMs = (seconds: number) => Math.max(0, Math.round(seconds * 1000));
 
-export const getStepDurationMs = (steps: Step[], index: number) =>
+export const getStepDurationMs = (steps: TimerItem[], index: number) =>
   steps[index] ? toMs(steps[index].durationSec) : 0;
 
-export const createInitialTimerState = (steps: Step[]): TimerState => {
+export const createInitialTimerState = (steps: TimerItem[]): TimerState => {
   const firstDuration = getStepDurationMs(steps, 0);
 
   return {
@@ -27,7 +29,7 @@ export const createInitialTimerState = (steps: Step[]): TimerState => {
   };
 };
 
-export const startTimer = (steps: Step[], now: number): TimerState => {
+export const startTimer = (steps: TimerItem[], now: number): TimerState => {
   const durationMs = getStepDurationMs(steps, 0);
 
   if (!steps.length) {
@@ -49,9 +51,9 @@ export const startTimer = (steps: Step[], now: number): TimerState => {
   };
 };
 
-export const restartTimer = (steps: Step[], now: number): TimerState => startTimer(steps, now);
+export const restartTimer = (steps: TimerItem[], now: number): TimerState => startTimer(steps, now);
 
-export const pauseTimer = (state: TimerState, steps: Step[], now: number): TimerState => {
+export const pauseTimer = (state: TimerState, steps: TimerItem[], now: number): TimerState => {
   if (state.status !== 'running') {
     return state;
   }
@@ -69,7 +71,7 @@ export const pauseTimer = (state: TimerState, steps: Step[], now: number): Timer
   };
 };
 
-export const resumeTimer = (state: TimerState, steps: Step[], now: number): TimerState => {
+export const resumeTimer = (state: TimerState, steps: TimerItem[], now: number): TimerState => {
   if (state.status !== 'paused') {
     return state;
   }
@@ -87,7 +89,7 @@ export const resumeTimer = (state: TimerState, steps: Step[], now: number): Time
   };
 };
 
-export const tickTimer = (state: TimerState, steps: Step[], now: number): TimerState => {
+export const tickTimer = (state: TimerState, steps: TimerItem[], now: number): TimerState => {
   if (state.status !== 'running') {
     return state;
   }
@@ -122,7 +124,7 @@ export const tickTimer = (state: TimerState, steps: Step[], now: number): TimerS
   };
 };
 
-export const nextStep = (state: TimerState, steps: Step[], now: number): TimerState => {
+export const nextStep = (state: TimerState, steps: TimerItem[], now: number): TimerState => {
   const nextIndex = state.currentStepIndex + 1;
 
   if (nextIndex >= steps.length) {
@@ -146,7 +148,7 @@ export const nextStep = (state: TimerState, steps: Step[], now: number): TimerSt
   };
 };
 
-export const previousStep = (state: TimerState, steps: Step[], now: number): TimerState => {
+export const previousStep = (state: TimerState, steps: TimerItem[], now: number): TimerState => {
   if (!steps.length) {
     return {
       status: 'finished',
@@ -169,7 +171,7 @@ export const previousStep = (state: TimerState, steps: Step[], now: number): Tim
   };
 };
 
-export const getTotalRemainingMs = (steps: Step[], state: TimerState) => {
+export const getTotalRemainingMs = (steps: TimerItem[], state: TimerState) => {
   const futureMs = steps
     .slice(state.currentStepIndex + 1)
     .reduce((sum, step) => sum + toMs(step.durationSec), 0);

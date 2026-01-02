@@ -8,11 +8,20 @@ type Props = {
   value: number;
   min?: number;
   max?: number;
+  suffix?: string;
   onChange: (value: number) => void;
   style?: StyleProp<ViewStyle>;
 };
 
-const DurationInput: React.FC<Props> = ({ label, value, min = 1, max = 3600, onChange, style }) => {
+const DurationInput: React.FC<Props> = ({
+  label,
+  value,
+  min = 1,
+  max = 3600,
+  suffix = 'sec',
+  onChange,
+  style,
+}) => {
   const adjust = (delta: number) => {
     onChange(clampDuration(value + delta, min, max));
   };
@@ -44,7 +53,7 @@ const DurationInput: React.FC<Props> = ({ label, value, min = 1, max = 3600, onC
         <Pressable style={styles.stepper} onPress={() => adjust(1)}>
           <Text style={styles.stepperText}>+</Text>
         </Pressable>
-        <Text style={styles.suffix}>sec</Text>
+        <Text style={styles.suffix}>{suffix}</Text>
       </View>
     </View>
   );

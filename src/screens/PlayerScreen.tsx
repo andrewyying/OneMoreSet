@@ -6,7 +6,7 @@ import { Audio } from 'expo-av';
 import * as Haptics from 'expo-haptics';
 
 import PrimaryButton from '../components/PrimaryButton';
-import { formatSeconds } from '../lib/time';
+import { buildPhases, formatSeconds, Phase } from '../lib/time';
 import {
   createInitialTimerState,
   getTotalRemainingMs,
@@ -29,12 +29,17 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
   const { scheduleId } = route.params;
   const { schedules } = useSchedules();
   const schedule = schedules.find((item) => item.id === scheduleId);
-  const steps = schedule?.steps ?? [];
+  const phases = useMemo<Phase[]>(() => {
+    if (!schedule) {
+      return [];
+    }
+    return buildPhases({ steps: schedule.steps, restBetweenSec: schedule.restBetweenSec });
+  }, [schedule]);
   const { width } = useWindowDimensions();
   const isNarrow = width < 380;
   const timerFontSize = Math.max(48, Math.min(88, width * 0.18));
 
-  const [timerState, setTimerState] = useState<TimerState>(() => createInitialTimerState(steps));
+  const [timerState, setTimerState] = useState<TimerState>(() => createInitialTimerState(phases));
   const soundRef = useRef<Audio.Sound | null>(null);
   const lastStepIndexRef = useRef(timerState.currentStepIndex);
   const lastStatusRef = useRef<TimerStatus>(timerState.status);
@@ -85,8 +90,8 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
   }, []);
 
   useEffect(() => {
-    setTimerState(createInitialTimerState(steps));
-  }, [steps]);
+    setTimerState(createInitialTimerState(phases));
+  }, [phases]);
 
   useEffect(() => {
     if (timerState.status !== 'running') {
@@ -94,11 +99,11 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
     }
 
     const interval = setInterval(() => {
-      setTimerState((prev) => tickTimer(prev, steps, Date.now()));
+      setTimerState((prev) => tickTimer(prev, phases, Date.now()));
     }, 250);
 
     return () => clearInterval(interval);
-  }, [steps, timerState.status]);
+  }, [phases, timerState.status]);
 
   useEffect(() => {
     if (!schedule) {
@@ -124,30 +129,30 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
     }
   }, [timerState.status, triggerCue]);
 
-  const currentStep = steps[timerState.currentStepIndex];
-  const upcomingStep = steps[timerState.currentStepIndex + 1];
+  const currentStep = phases[timerState.currentStepIndex];
+  const upcomingStep = phases[timerState.currentStepIndex + 1];
   const stepDurationMs = currentStep ? currentStep.durationSec * 1000 : 0;
   const progress = stepDurationMs > 0 ? Math.min(1, 1 - timerState.remainingMs / stepDurationMs) : 0;
   const remainingSec = Math.max(0, Math.ceil(timerState.remainingMs / 1000));
   const totalRemainingSec = useMemo(
-    () => Math.max(0, Math.ceil(getTotalRemainingMs(steps, timerState) / 1000)),
-    [steps, timerState],
+    () => Math.max(0, Math.ceil(getTotalRemainingMs(phases, timerState) / 1000)),
+    [phases, timerState],
   );
 
   const handlePrimaryControl = () => {
     const now = Date.now();
     if (timerState.status === 'running') {
-      setTimerState((prev) => pauseTimer(prev, steps, now));
+      setTimerState((prev) => pauseTimer(prev, phases, now));
     } else if (timerState.status === 'paused') {
-      setTimerState((prev) => resumeTimer(prev, steps, now));
+      setTimerState((prev) => resumeTimer(prev, phases, now));
     } else {
-      setTimerState(startTimer(steps, now));
+      setTimerState(startTimer(phases, now));
     }
   };
 
-  const handleRestart = () => setTimerState(restartTimer(steps, Date.now()));
-  const handleNext = () => setTimerState((prev) => nextStep(prev, steps, Date.now()));
-  const handlePrev = () => setTimerState((prev) => previousStep(prev, steps, Date.now()));
+  const handleRestart = () => setTimerState(restartTimer(phases, Date.now()));
+  const handleNext = () => setTimerState((prev) => nextStep(prev, phases, Date.now()));
+  const handlePrev = () => setTimerState((prev) => previousStep(prev, phases, Date.now()));
 
   if (!schedule) {
     return (
@@ -167,7 +172,7 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
         <Text style={styles.scheduleName}>{schedule.name}</Text>
-        <Text style={styles.currentLabel}>{currentStep?.label ?? 'No steps'}</Text>
+        <Text style={styles.currentLabel}>{currentStep?.label ?? 'No exercises'}</Text>
         <View style={styles.timerRow}>
           <Text style={[styles.timerText, { fontSize: timerFontSize }]}>{formatSeconds(remainingSec)}</Text>
           {currentStep ? (
@@ -206,7 +211,7 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
             label="Prev"
             variant="secondary"
             onPress={handlePrev}
-            disabled={steps.length === 0 || timerState.currentStepIndex === 0}
+            disabled={phases.length === 0 || timerState.currentStepIndex === 0}
             style={[
               styles.controlButton,
               isNarrow ? styles.controlSpacingVertical : styles.controlSpacing,
@@ -215,7 +220,7 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
           <PrimaryButton
             label={primaryLabel}
             onPress={handlePrimaryControl}
-            disabled={steps.length === 0}
+            disabled={phases.length === 0}
             style={[
               styles.controlButton,
               isNarrow ? styles.controlSpacingVertical : styles.controlSpacing,
@@ -225,7 +230,7 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
             label="Next"
             variant="secondary"
             onPress={handleNext}
-            disabled={steps.length === 0 || timerState.currentStepIndex >= steps.length - 1}
+            disabled={phases.length === 0 || timerState.currentStepIndex >= phases.length - 1}
             style={styles.controlButton}
           />
         </View>
@@ -235,7 +240,7 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
             label="Restart"
             variant="ghost"
             onPress={handleRestart}
-            disabled={steps.length === 0}
+            disabled={phases.length === 0}
             style={isNarrow ? styles.controlSpacingVertical : styles.controlSpacing}
           />
           <PrimaryButton label="Quit" variant="ghost" onPress={() => navigation.goBack()} />

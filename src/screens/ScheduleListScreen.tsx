@@ -29,12 +29,13 @@ const ScheduleListScreen: React.FC<Props> = ({ navigation }) => {
   const handleCreateSchedule = () => {
     const newId = createSchedule({
       name: 'New Schedule',
+      restBetweenSec: 0,
       steps: [
         {
           id: generateId('step'),
           label: 'Step 1',
-          type: 'exercise',
           durationSec: 30,
+          repeatCount: 1,
         },
       ],
     });
@@ -64,7 +65,8 @@ const ScheduleListScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   const renderItem: ListRenderItem<Schedule> = ({ item }) => {
-    const totalDuration = getTotalDuration(item.steps);
+    const totalDuration = getTotalDuration({ steps: item.steps, restBetweenSec: item.restBetweenSec });
+    const exerciseCount = item.steps.reduce((sum, step) => sum + Math.max(1, step.repeatCount), 0);
 
     return (
       <Pressable
@@ -76,7 +78,7 @@ const ScheduleListScreen: React.FC<Props> = ({ navigation }) => {
             {item.name}
           </Text>
           <Text style={styles.cardMeta}>
-            {item.steps.length} steps · {formatSeconds(totalDuration)}
+            {exerciseCount} exercises · {formatSeconds(totalDuration)}
           </Text>
         </View>
         <View style={styles.cardActions}>

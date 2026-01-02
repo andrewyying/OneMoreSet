@@ -10,7 +10,7 @@ import React, {
 
 import { generateId } from '../lib/ids';
 import { clampDuration } from '../lib/time';
-import { Schedule, ScheduleDraft, ScheduleUpdate, Step, StepType } from '../types/models';
+import { Schedule, ScheduleDraft, ScheduleUpdate, Step } from '../types/models';
 import { loadSchedulesFromStorage, saveSchedulesToStorage } from './storage';
 
 type SchedulesStatus = 'loading' | 'ready' | 'error';
@@ -50,14 +50,11 @@ function schedulesReducer(state: State, action: Action): State {
   }
 }
 
-const isStepType = (value: unknown): value is StepType =>
-  value === 'exercise' || value === 'rest' || value === 'other';
-
 const sanitizeStep = (step: Partial<Step>, index: number): Step => ({
   id: typeof step.id === 'string' && step.id.trim() ? step.id : generateId('step'),
   label: typeof step.label === 'string' && step.label.trim() ? step.label.trim() : `Step ${index + 1}`,
-  type: isStepType(step.type) ? step.type : 'other',
   durationSec: clampDuration(typeof step.durationSec === 'number' ? step.durationSec : 1),
+  repeatCount: Math.max(1, Math.floor(typeof step.repeatCount === 'number' ? step.repeatCount : 1)),
   color: typeof step.color === 'string' && step.color.trim() ? step.color : undefined,
 });
 
@@ -83,6 +80,7 @@ const sanitizeSchedule = (
         ? schedule.name.trim()
         : `Schedule ${fallbackIndex + 1}`,
     steps,
+    restBetweenSec: clampDuration(typeof schedule.restBetweenSec === 'number' ? schedule.restBetweenSec : 0, 0),
     createdAt: typeof schedule.createdAt === 'number' ? schedule.createdAt : now,
     updatedAt: typeof schedule.updatedAt === 'number' ? schedule.updatedAt : now,
   };
@@ -103,14 +101,14 @@ const createSampleSchedule = (): Schedule => {
   const steps: Step[] = [];
 
   for (let round = 1; round <= 8; round += 1) {
-    steps.push(sanitizeStep({ label: `Round ${round}: Work`, type: 'exercise', durationSec: 30 }, steps.length));
-    steps.push(sanitizeStep({ label: `Round ${round}: Rest`, type: 'rest', durationSec: 10 }, steps.length));
+    steps.push(sanitizeStep({ label: `Round ${round}`, durationSec: 30, repeatCount: 1 }, steps.length));
   }
 
   return {
     id: generateId('schedule'),
     name: 'Demo: 30s on / 10s rest x8',
     steps,
+    restBetweenSec: 10,
     createdAt: now,
     updatedAt: now,
   };

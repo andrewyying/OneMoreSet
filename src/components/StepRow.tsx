@@ -1,13 +1,7 @@
 import React from 'react';
-import {
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { Step, StepType } from '../types/models';
+import { Step } from '../types/models';
 import DurationInput from './DurationInput';
 
 type Props = {
@@ -20,12 +14,6 @@ type Props = {
   onDuplicate: (index: number) => void;
   onDelete: (index: number) => void;
 };
-
-const typeOptions: { value: StepType; label: string }[] = [
-  { value: 'exercise', label: 'Exercise' },
-  { value: 'rest', label: 'Rest' },
-  { value: 'other', label: 'Other' },
-];
 
 const StepRow: React.FC<Props> = ({
   step,
@@ -76,25 +64,20 @@ const StepRow: React.FC<Props> = ({
         onChangeText={(text) => setField('label', text)}
       />
 
-      <View style={styles.typeRow}>
-        {typeOptions.map((option) => {
-          const isActive = option.value === step.type;
-          return (
-            <Pressable
-              key={option.value}
-              onPress={() => setField('type', option.value)}
-              style={[styles.typePill, isActive && styles.typePillActive]}
-            >
-              <Text style={[styles.typeText, isActive && styles.typeTextActive]}>{option.label}</Text>
-            </Pressable>
-          );
-        })}
-      </View>
-
       <DurationInput
         label="Duration"
         value={step.durationSec}
         onChange={(value) => setField('durationSec', value)}
+        style={styles.duration}
+      />
+
+      <DurationInput
+        label="Repeats"
+        value={step.repeatCount}
+        min={1}
+        max={99}
+        suffix="x"
+        onChange={(value) => setField('repeatCount', value)}
         style={styles.duration}
       />
 
@@ -170,30 +153,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#0f172a',
     marginBottom: 10,
-  },
-  typeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  typePill: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    marginRight: 8,
-  },
-  typePillActive: {
-    backgroundColor: '#0ea5e9',
-    borderColor: '#0ea5e9',
-  },
-  typeText: {
-    color: '#0f172a',
-    fontWeight: '600',
-  },
-  typeTextActive: {
-    color: '#ffffff',
   },
   duration: {
     marginBottom: 10,
