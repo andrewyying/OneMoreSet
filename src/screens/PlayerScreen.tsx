@@ -389,7 +389,9 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
 
         <TouchableOpacity style={styles.nextRow} onPress={() => setShowExercises(true)} activeOpacity={0.8}>
           <Text style={styles.previewLabel}>Next</Text>
-          {upcomingStep ? (
+          {isFinished ? (
+            <Text style={styles.previewTitle}>Congratulations! You finished the workout</Text>
+          ) : upcomingStep ? (
             <>
               <Text style={styles.previewTitle}>{upcomingStep.label}</Text>
             </>
@@ -422,7 +424,7 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
             label="Next"
             variant="secondary"
             onPress={handleNext}
-            disabled={phases.length === 0 || timerState.currentStepIndex >= phases.length - 1}
+            disabled={phases.length === 0}
             style={styles.controlButton}
           />
         </View>
