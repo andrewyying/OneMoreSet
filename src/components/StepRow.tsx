@@ -59,7 +59,7 @@ const StepRow: React.FC<Props> = ({
 
       <TextInput
         style={styles.input}
-        placeholder="Label"
+        placeholder="Exercise name (e.g. Plank Hold)" 
         value={step.label}
         onChangeText={(text) => setField('label', text)}
       />
@@ -72,7 +72,7 @@ const StepRow: React.FC<Props> = ({
       />
 
       <DurationInput
-        label="Repeats (times)"
+        label="Repeats (sets)"
         value={step.repeatCount}
         min={1}
         max={99}
@@ -80,13 +80,6 @@ const StepRow: React.FC<Props> = ({
         style={styles.duration}
       />
 
-      <TextInput
-        style={styles.input}
-        placeholder="Color (optional, e.g. #FF6B6B)"
-        autoCapitalize="none"
-        value={step.color ?? ''}
-        onChangeText={(text) => setField('color', text)}
-      />
     </View>
   );
 };

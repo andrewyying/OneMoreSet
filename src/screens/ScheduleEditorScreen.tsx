@@ -110,25 +110,6 @@ const ScheduleEditorScreen: React.FC<Props> = ({ navigation, route }) => {
     });
   }, []);
 
-  const duplicateStep = useCallback((index: number) => {
-    setSteps((prev) => {
-      const source = prev[index];
-      if (!source) {
-        return prev;
-      }
-
-      const copy: Step = {
-        ...source,
-        id: generateId('step'),
-        label: `${source.label || `Step ${index + 1}`} copy`,
-      };
-
-      const next = [...prev];
-      next.splice(index + 1, 0, copy);
-      return next;
-    });
-  }, []);
-
   const deleteStep = useCallback((index: number) => {
     setSteps((prev) => prev.filter((_, idx) => idx !== index));
   }, []);
@@ -139,8 +120,8 @@ const ScheduleEditorScreen: React.FC<Props> = ({ navigation, route }) => {
       {
         id: generateId('step'),
         label: `Step ${prev.length + 1}`,
-        durationSec: 30,
-        repeatCount: 1,
+        durationSec: 120,
+        repeatCount: 2,
       },
     ]);
   }, []);
