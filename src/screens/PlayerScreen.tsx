@@ -442,7 +442,7 @@ const styles = StyleSheet.create({
   circleWrapper: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginVertical: 12,
+    marginVertical: 20,
   },
   circleCenter: {
     position: 'absolute',
@@ -478,6 +478,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     marginBottom: 20,
     paddingHorizontal: 8,
+    marginVertical: 20,
   },
   controlsRowNarrow: {
     flexDirection: 'column',

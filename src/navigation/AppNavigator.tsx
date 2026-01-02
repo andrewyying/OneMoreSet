@@ -26,7 +26,11 @@ const AppNavigator: React.FC = () => {
       <Stack.Navigator>
         <Stack.Screen name="ScheduleList" component={ScheduleListScreen} options={{ title: 'Schedules' }} />
         <Stack.Screen name="ScheduleEditor" component={ScheduleEditorScreen} options={{ title: 'Edit Schedule' }} />
-        <Stack.Screen name="Player" component={PlayerScreen} options={{ title: 'Player' }} />
+        <Stack.Screen
+          name="Player"
+          component={PlayerScreen}
+          options={{ title: 'Player', headerShown: false, gestureEnabled: false }}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );
