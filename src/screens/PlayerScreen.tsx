@@ -40,9 +40,11 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
   const timerFontSize = Math.max(48, Math.min(88, width * 0.18));
 
   const [timerState, setTimerState] = useState<TimerState>(() => createInitialTimerState(phases));
-  const soundRef = useRef<Audio.Sound | null>(null);
+  const restSoundRef = useRef<Audio.Sound | null>(null);
+  const startSoundRef = useRef<Audio.Sound | null>(null);
   const lastStepIndexRef = useRef(timerState.currentStepIndex);
   const lastStatusRef = useRef<TimerStatus>(timerState.status);
+  const lastCountdownBeepRef = useRef<number | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -50,11 +52,16 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
     const loadSound = async () => {
       try {
         await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
-        const { sound } = await Audio.Sound.createAsync(require('../../assets/sounds/beep.wav'));
+        const [restResult, startResult] = await Promise.all([
+          Audio.Sound.createAsync(require('../../assets/sounds/beep.wav')),
+          Audio.Sound.createAsync(require('../../assets/sounds/beep-high.wav')),
+        ]);
         if (isMounted) {
-          soundRef.current = sound;
+          restSoundRef.current = restResult.sound;
+          startSoundRef.current = startResult.sound;
         } else {
-          await sound.unloadAsync();
+          await restResult.sound.unloadAsync();
+          await startResult.sound.unloadAsync();
         }
       } catch (error) {
         console.warn('Failed to load cue sound', error);
@@ -65,27 +72,44 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
 
     return () => {
       isMounted = false;
-      if (soundRef.current) {
-        soundRef.current.unloadAsync();
-        soundRef.current = null;
+      if (restSoundRef.current) {
+        restSoundRef.current.unloadAsync();
+        restSoundRef.current = null;
+      }
+      if (startSoundRef.current) {
+        startSoundRef.current.unloadAsync();
+        startSoundRef.current = null;
       }
     };
   }, []);
 
-  const triggerCue = useCallback(async () => {
+  const triggerHaptic = useCallback(async () => {
     try {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     } catch (error) {
       console.warn('Haptics failed', error);
     }
+  }, []);
 
+  const playBeepSound = useCallback(async () => {
     try {
-      const sound = soundRef.current;
+      const sound = restSoundRef.current;
       if (sound) {
         await sound.replayAsync();
       }
     } catch (error) {
       console.warn('Cue sound failed', error);
+    }
+  }, []);
+
+  const playStartSound = useCallback(async () => {
+    try {
+      const sound = startSoundRef.current;
+      if (sound) {
+        await sound.replayAsync();
+      }
+    } catch (error) {
+      console.warn('Start sound failed', error);
     }
   }, []);
 
@@ -116,18 +140,46 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
   useEffect(() => {
     if (timerState.currentStepIndex !== lastStepIndexRef.current) {
       lastStepIndexRef.current = timerState.currentStepIndex;
-      triggerCue();
+      const step = phases[timerState.currentStepIndex];
+      if (step?.type === 'exercise') {
+        playStartSound();
+      }
+      triggerHaptic();
     }
-  }, [timerState.currentStepIndex, triggerCue]);
+  }, [phases, playStartSound, timerState.currentStepIndex, triggerHaptic]);
 
   useEffect(() => {
     if (timerState.status !== lastStatusRef.current) {
       if (timerState.status === 'finished') {
-        triggerCue();
+        triggerHaptic();
       }
       lastStatusRef.current = timerState.status;
     }
-  }, [timerState.status, triggerCue]);
+  }, [timerState.status, triggerHaptic]);
+
+  useEffect(() => {
+    if (timerState.status !== 'running') {
+      lastCountdownBeepRef.current = null;
+      return;
+    }
+
+    const current = phases[timerState.currentStepIndex];
+    if (!current || current.type !== 'rest') {
+      lastCountdownBeepRef.current = null;
+      return;
+    }
+
+    const remainingSec = Math.max(0, Math.ceil(timerState.remainingMs / 1000));
+
+    if ([3, 2, 1].includes(remainingSec)) {
+      if (lastCountdownBeepRef.current !== remainingSec) {
+        playBeepSound();
+        lastCountdownBeepRef.current = remainingSec;
+      }
+    } else if (remainingSec > 3) {
+      lastCountdownBeepRef.current = null;
+    }
+  }, [phases, playBeepSound, timerState.currentStepIndex, timerState.remainingMs, timerState.status]);
 
   const currentStep = phases[timerState.currentStepIndex];
   const upcomingStep = phases[timerState.currentStepIndex + 1];
@@ -147,6 +199,9 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
       setTimerState((prev) => resumeTimer(prev, phases, now));
     } else {
       setTimerState(startTimer(phases, now));
+      if (phases[0]?.type === 'exercise') {
+        playStartSound();
+      }
     }
   };
 
