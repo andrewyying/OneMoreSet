@@ -7,6 +7,8 @@ import React, {
   useState,
 } from 'react';
 import {
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -14,7 +16,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import PrimaryButton from '../components/PrimaryButton';
@@ -32,6 +34,7 @@ const ScheduleEditorScreen: React.FC<Props> = ({ navigation, route }) => {
   const { scheduleId } = route.params;
   const { schedules, updateSchedule } = useSchedules();
   const schedule = schedules.find((item) => item.id === scheduleId);
+  const insets = useSafeAreaInsets();
 
   const [name, setName] = useState(schedule?.name ?? '');
   const [steps, setSteps] = useState<Step[]>(schedule?.steps ?? []);
@@ -54,6 +57,7 @@ const ScheduleEditorScreen: React.FC<Props> = ({ navigation, route }) => {
     () => getTotalDuration({ steps, restBetweenSec: restEnabled ? restBetweenSec : 0 }),
     [restBetweenSec, restEnabled, steps],
   );
+  const contentPaddingBottom = useMemo(() => 64 + insets.bottom + 220, [insets.bottom]);
 
   const handleSave = useCallback(() => {
     const sanitizedSteps = steps
@@ -137,7 +141,16 @@ const ScheduleEditorScreen: React.FC<Props> = ({ navigation, route }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
+      >
+        <ScrollView
+          contentContainerStyle={[styles.content, { paddingBottom: contentPaddingBottom }]}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
+        >
         <Text style={styles.label}>Schedule name</Text>
         <TextInput
           style={styles.nameInput}
@@ -189,7 +202,8 @@ const ScheduleEditorScreen: React.FC<Props> = ({ navigation, route }) => {
 
         <PrimaryButton label="Add Step" onPress={addStep} style={styles.addButton} />
         <View style={styles.footerSpace} />
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };

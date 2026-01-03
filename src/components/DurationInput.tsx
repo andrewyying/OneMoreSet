@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Pressable, StyleProp, StyleSheet, Text, TextInput, View, ViewStyle } from 'react-native';
 
 import { clampDuration } from '../lib/time';
@@ -20,19 +20,41 @@ const DurationInput: React.FC<Props> = ({
   onChange,
   style,
 }) => {
+  const [textValue, setTextValue] = useState(String(value));
+
+  useEffect(() => {
+    setTextValue(String(value));
+  }, [value]);
+
   const adjust = (delta: number) => {
-    onChange(clampDuration(value + delta, min, max));
+    const next = clampDuration(value + delta, min, max);
+    setTextValue(String(next));
+    onChange(next);
   };
 
   const handleChange = (text: string) => {
-    const parsed = parseInt(text, 10);
-
-    if (Number.isNaN(parsed)) {
-      onChange(min);
+    setTextValue(text);
+    if (text.trim() === '') {
       return;
     }
-
+    const parsed = parseInt(text, 10);
+    if (Number.isNaN(parsed)) {
+      return;
+    }
     onChange(clampDuration(parsed, min, max));
+  };
+
+  const handleBlur = () => {
+    if (textValue.trim() === '') {
+      const fallback = clampDuration(min, min, max);
+      setTextValue(String(fallback));
+      onChange(fallback);
+      return;
+    }
+    const parsed = parseInt(textValue, 10);
+    const next = clampDuration(Number.isNaN(parsed) ? min : parsed, min, max);
+    setTextValue(String(next));
+    onChange(next);
   };
 
   return (
@@ -49,8 +71,9 @@ const DurationInput: React.FC<Props> = ({
         <TextInput
           style={styles.input}
           keyboardType="number-pad"
-          value={String(value)}
+          value={textValue}
           onChangeText={handleChange}
+          onBlur={handleBlur}
         />
         <Pressable style={styles.stepper} onPress={() => adjust(1)}>
           <Text style={styles.stepperText}>+</Text>

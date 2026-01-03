@@ -165,7 +165,7 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
 
     const interval = setInterval(() => {
       setTimerState((prev) => tickTimer(prev, phases, Date.now()));
-    }, 250);
+    }, 10);
 
     return () => clearInterval(interval);
   }, [phases, timerState.status]);
@@ -201,12 +201,6 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
 
   useEffect(() => {
     if (timerState.status !== 'running') {
-      lastCountdownBeepRef.current = null;
-      return;
-    }
-
-    const current = phases[timerState.currentStepIndex];
-    if (!current || current.type !== 'rest') {
       lastCountdownBeepRef.current = null;
       return;
     }
