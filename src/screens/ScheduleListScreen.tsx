@@ -8,6 +8,8 @@ import {
   Text,
   View,
 } from 'react-native';
+import { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
+import { CompositeScreenProps } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useWindowDimensions } from 'react-native';
@@ -17,10 +19,13 @@ import PrimaryButton from '../components/PrimaryButton';
 import { generateId } from '../lib/ids';
 import { formatSeconds, getTotalDuration } from '../lib/time';
 import { useSchedules } from '../store/schedules';
-import { RootStackParamList } from '../types/navigation';
+import { MainTabParamList, RootStackParamList } from '../types/navigation';
 import { Schedule } from '../types/models';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'ScheduleList'>;
+type Props = CompositeScreenProps<
+  BottomTabScreenProps<MainTabParamList, 'ScheduleList'>,
+  NativeStackScreenProps<RootStackParamList>
+>;
 
 const ScheduleListScreen: React.FC<Props> = ({ navigation }) => {
   const { schedules, createSchedule, deleteSchedule } = useSchedules();
@@ -100,11 +105,17 @@ const ScheduleListScreen: React.FC<Props> = ({ navigation }) => {
           <Text style={styles.title}>Schedules</Text>
           <Text style={styles.subtitle}>Build and run your workouts.</Text>
         </View>
-        <PrimaryButton
-          label="New Schedule"
+        <Pressable
           onPress={handleCreateSchedule}
-          style={isNarrow ? styles.headerButtonNarrow : undefined}
-        />
+          style={({ pressed }) => [
+            styles.fab,
+            isNarrow && styles.fabNarrow,
+            pressed && styles.fabPressed,
+          ]}
+          hitSlop={12}
+        >
+          <Text style={styles.fabText}>＋</Text>
+        </Pressable>
       </View>
       <FlatList
         data={schedules}
@@ -134,7 +145,7 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical:30,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -163,6 +174,31 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: 16,
     paddingBottom: 24,
+  },
+  fab: {
+    width: 33,
+    height: 33,
+    borderRadius: 22,
+    backgroundColor: '#111827',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#0f172a',
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
+  },
+  fabNarrow: {
+    marginTop: 8,
+  },
+  fabPressed: {
+    opacity: 0.85,
+  },
+  fabText: {
+    color: '#fff',
+    fontSize: 26,
+    fontWeight: '800',
+    marginTop: -1,
   },
   emptyContent: {
     flex: 1,
