@@ -1,5 +1,15 @@
-import React, { useEffect, useState } from 'react';
-import { Pressable, StyleProp, StyleSheet, Text, TextInput, View, ViewStyle } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  Modal,
+  Pressable,
+  StyleProp,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  ViewStyle,
+} from 'react-native';
+import { Picker } from '@react-native-picker/picker';
 
 import { clampDuration } from '../lib/time';
 
@@ -21,10 +31,21 @@ const DurationInput: React.FC<Props> = ({
   style,
 }) => {
   const [textValue, setTextValue] = useState(String(value));
+  const [pickerVisible, setPickerVisible] = useState(false);
+  const [pickerValue, setPickerValue] = useState(value);
 
   useEffect(() => {
     setTextValue(String(value));
+    setPickerValue(value);
   }, [value]);
+
+  const options = useMemo(() => {
+    const list: number[] = [];
+    for (let v = min; v <= max; v += 1) {
+      list.push(v);
+    }
+    return list;
+  }, [max, min]);
 
   const adjust = (delta: number) => {
     const next = clampDuration(value + delta, min, max);
@@ -32,29 +53,18 @@ const DurationInput: React.FC<Props> = ({
     onChange(next);
   };
 
-  const handleChange = (text: string) => {
-    setTextValue(text);
-    if (text.trim() === '') {
-      return;
-    }
-    const parsed = parseInt(text, 10);
-    if (Number.isNaN(parsed)) {
-      return;
-    }
-    onChange(clampDuration(parsed, min, max));
+  const openPicker = () => {
+    setPickerValue(value);
+    setPickerVisible(true);
   };
 
-  const handleBlur = () => {
-    if (textValue.trim() === '') {
-      const fallback = clampDuration(min, min, max);
-      setTextValue(String(fallback));
-      onChange(fallback);
-      return;
-    }
-    const parsed = parseInt(textValue, 10);
-    const next = clampDuration(Number.isNaN(parsed) ? min : parsed, min, max);
+  const closePicker = () => setPickerVisible(false);
+
+  const confirmPicker = () => {
+    const next = clampDuration(pickerValue, min, max);
     setTextValue(String(next));
     onChange(next);
+    setPickerVisible(false);
   };
 
   return (
@@ -68,17 +78,34 @@ const DurationInput: React.FC<Props> = ({
         <Pressable style={styles.stepper} onPress={() => adjust(-1)}>
           <Text style={styles.stepperText}>-</Text>
         </Pressable>
-        <TextInput
-          style={styles.input}
-          keyboardType="number-pad"
-          value={textValue}
-          onChangeText={handleChange}
-          onBlur={handleBlur}
-        />
+        <Pressable style={styles.valueBox} onPress={openPicker}>
+          <Text style={styles.valueText}>{textValue}</Text>
+        </Pressable>
         <Pressable style={styles.stepper} onPress={() => adjust(1)}>
           <Text style={styles.stepperText}>+</Text>
         </Pressable>
       </View>
+
+      <Modal transparent animationType="fade" visible={pickerVisible} onRequestClose={closePicker}>
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={closePicker}>
+          <TouchableOpacity activeOpacity={1} style={styles.sheet}>
+            <View style={styles.sheetHeader}>
+              <Pressable onPress={closePicker} hitSlop={8}>
+                <Text style={styles.sheetAction}>Cancel</Text>
+              </Pressable>
+              <Text style={styles.sheetTitle}>Select</Text>
+              <Pressable onPress={confirmPicker} hitSlop={8}>
+                <Text style={styles.sheetAction}>Set</Text>
+              </Pressable>
+            </View>
+            <Picker selectedValue={pickerValue} onValueChange={(val) => setPickerValue(Number(val))}>
+              {options.map((opt) => (
+                <Picker.Item key={opt} label={String(opt)} value={opt} />
+              ))}
+            </Picker>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 };
@@ -125,6 +152,51 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#0f172a',
     textAlign: 'center',
+  },
+  valueBox: {
+    flex: 1,
+    marginHorizontal: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  valueText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#0f172a',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    justifyContent: 'flex-end',
+  },
+  sheet: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 16,
+  },
+  sheetHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  sheetTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  sheetAction: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#0ea5e9',
   },
 });
 
