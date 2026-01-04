@@ -60,6 +60,7 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
   const restSoundRef = useRef<Audio.Sound | null>(null);
   const startSoundRef = useRef<Audio.Sound | null>(null);
   const halfSoundRef = useRef<Audio.Sound | null>(null);
+  const lockSoundRef = useRef<Audio.Sound | null>(null);
   const lastStepIndexRef = useRef(timerState.currentStepIndex);
   const lastStatusRef = useRef<TimerStatus>(timerState.status);
   const lastCountdownBeepRef = useRef<number | null>(null);
@@ -75,19 +76,22 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
     const loadSound = async () => {
       try {
         await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
-        const [restResult, startResult, halfResult] = await Promise.all([
+        const [restResult, startResult, halfResult, lockResult] = await Promise.all([
           Audio.Sound.createAsync(require('../../assets/sounds/beep.wav')),
           Audio.Sound.createAsync(require('../../assets/sounds/beep-high.wav')),
           Audio.Sound.createAsync(require('../../assets/sounds/tick.wav')),
+          Audio.Sound.createAsync(require('../../assets/sounds/lock.wav')),
         ]);
         if (isMounted) {
           restSoundRef.current = restResult.sound;
           startSoundRef.current = startResult.sound;
           halfSoundRef.current = halfResult.sound;
+          lockSoundRef.current = lockResult.sound;
         } else {
           await restResult.sound.unloadAsync();
           await startResult.sound.unloadAsync();
           await halfResult.sound.unloadAsync();
+          await lockResult.sound.unloadAsync();
         }
       } catch (error) {
         console.warn('Failed to load cue sound', error);
@@ -109,6 +113,10 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
       if (halfSoundRef.current) {
         halfSoundRef.current.unloadAsync();
         halfSoundRef.current = null;
+      }
+      if (lockSoundRef.current) {
+        lockSoundRef.current.unloadAsync();
+        lockSoundRef.current = null;
       }
     };
   }, []);
@@ -154,6 +162,17 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
     }
   }, []);
 
+  const playLockSound = useCallback(async () => {
+    try {
+      const sound = lockSoundRef.current;
+      if (sound) {
+        await sound.replayAsync();
+      }
+    } catch (error) {
+      console.warn('Rest start sound failed', error);
+    }
+  }, []);
+
   useEffect(() => {
     setTimerState(createInitialTimerState(phases));
   }, [phases]);
@@ -184,11 +203,13 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
       const step = phases[timerState.currentStepIndex];
       if (step?.type === 'exercise') {
         playStartSound();
+      } else if (step?.type === 'rest') {
+        playLockSound();
       }
       triggerHaptic();
       halfCueIndexRef.current = null;
     }
-  }, [phases, playStartSound, timerState.currentStepIndex, triggerHaptic]);
+  }, [phases, playLockSound, playStartSound, timerState.currentStepIndex, triggerHaptic]);
 
   useEffect(() => {
     if (timerState.status !== lastStatusRef.current) {
