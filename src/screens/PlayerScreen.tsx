@@ -42,6 +42,8 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Player'>;
 const LIVE_ACTIVITY_IMAGE_NAME = 'logo';
 const COUNTDOWN_CUE_WINDOW_MS = 900;
 const HALF_CUE_WINDOW_MS = 2000;
+const LIVE_ACTIVITY_RESYNC_INTERVAL_MS = 1000;
+const LIVE_ACTIVITY_RESYNC_ATTEMPTS = 5;
 
 const LIVE_ACTIVITY_CONFIG: LiveActivity.LiveActivityConfig = {
   backgroundColor: '#0f172a',
@@ -90,6 +92,8 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
   const lastCountdownBeepRef = useRef<number | null>(null);
   const halfCueIndexRef = useRef<number | null>(null);
   const liveActivityIdRef = useRef<string | null>(null);
+  const liveActivityResyncIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const liveActivityResyncAttemptsRef = useRef(0);
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
   const timerStateRef = useRef(timerState);
   const phasesRef = useRef(phases);
@@ -316,8 +320,13 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
     }
 
     if (liveActivityIdRef.current) {
-      LiveActivity.updateActivity(liveActivityIdRef.current, state);
-      return;
+      try {
+        LiveActivity.updateActivity(liveActivityIdRef.current, state);
+        return;
+      } catch (error) {
+        console.warn('Live Activity update failed', error);
+        liveActivityIdRef.current = null;
+      }
     }
 
     const activityId = LiveActivity.startActivity(state, LIVE_ACTIVITY_CONFIG);
@@ -326,23 +335,53 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
     }
   }, [buildLiveActivityState]);
 
-  const updateLiveActivity = useCallback((stateOverride?: TimerState) => {
-    if (Platform.OS !== 'ios') {
-      return;
+  const clearLiveActivityResync = useCallback(() => {
+    if (liveActivityResyncIntervalRef.current) {
+      clearInterval(liveActivityResyncIntervalRef.current);
+      liveActivityResyncIntervalRef.current = null;
     }
+    liveActivityResyncAttemptsRef.current = 0;
+  }, []);
 
-    const activityId = liveActivityIdRef.current;
-    if (!activityId) {
-      return;
-    }
+  const scheduleLiveActivityResync = useCallback(
+    (stepIndex: number) => {
+      if (Platform.OS !== 'ios') {
+        return;
+      }
 
-    const state = buildLiveActivityState(stateOverride ?? timerStateRef.current);
-    if (!state) {
-      return;
-    }
+      clearLiveActivityResync();
+      liveActivityResyncAttemptsRef.current = 0;
 
-    LiveActivity.updateActivity(activityId, state);
-  }, [buildLiveActivityState]);
+      if (appStateRef.current === 'active') {
+        return;
+      }
+
+      liveActivityResyncIntervalRef.current = setInterval(() => {
+        const latestState = timerStateRef.current;
+        if (latestState.status !== 'running') {
+          clearLiveActivityResync();
+          return;
+        }
+        if (latestState.currentStepIndex !== stepIndex) {
+          clearLiveActivityResync();
+          return;
+        }
+
+        if (liveActivityResyncAttemptsRef.current >= LIVE_ACTIVITY_RESYNC_ATTEMPTS) {
+          clearLiveActivityResync();
+          return;
+        }
+
+        if (appStateRef.current === 'active') {
+          return;
+        }
+
+        liveActivityResyncAttemptsRef.current += 1;
+        startLiveActivity(latestState);
+      }, LIVE_ACTIVITY_RESYNC_INTERVAL_MS);
+    },
+    [clearLiveActivityResync, startLiveActivity],
+  );
 
   const stopLiveActivity = useCallback((stateOverride?: TimerState) => {
     if (Platform.OS !== 'ios') {
@@ -412,11 +451,8 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
         triggerHaptic();
       }
       halfCueIndexRef.current = null;
-      if (liveActivityIdRef.current) {
-        updateLiveActivity();
-      }
     }
-  }, [phases, playLockSound, playStartSound, timerState.currentStepIndex, triggerHaptic, updateLiveActivity]);
+  }, [phases, playLockSound, playStartSound, timerState.currentStepIndex, triggerHaptic]);
 
   useEffect(() => {
     if (timerState.status !== lastStatusRef.current) {
@@ -435,17 +471,29 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
 
   useEffect(() => {
     const handleAppStateChange = (nextState: AppStateStatus) => {
-      const prevState = appStateRef.current;
       appStateRef.current = nextState;
 
-      if (prevState === 'background' && nextState === 'active') {
-        setTimerState((prev) => tickTimer(prev, phasesRef.current, Date.now()));
+      if (nextState === 'active') {
+        clearLiveActivityResync();
+        const nextTimerState = tickTimer(timerStateRef.current, phasesRef.current, Date.now());
+        setTimerState(nextTimerState);
+        if (nextTimerState.status === 'running') {
+          startLiveActivity(nextTimerState);
+        } else if (liveActivityIdRef.current) {
+          stopLiveActivity(nextTimerState);
+        }
+        return;
+      }
+
+      const latestState = timerStateRef.current;
+      if (latestState.status === 'running') {
+        scheduleLiveActivityResync(latestState.currentStepIndex);
       }
     };
 
     const subscription = AppState.addEventListener('change', handleAppStateChange);
     return () => subscription.remove();
-  }, []);
+  }, [clearLiveActivityResync, scheduleLiveActivityResync, startLiveActivity, stopLiveActivity]);
 
   useEffect(() => {
     if (timerState.status === 'running') {
@@ -453,16 +501,20 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
         startBackgroundAudio();
       }
       startLiveActivity(timerState);
+      scheduleLiveActivityResync(timerState.currentStepIndex);
       return;
     }
 
+    clearLiveActivityResync();
     if (liveActivityIdRef.current) {
       stopLiveActivity(timerState);
     }
     stopBackgroundAudio();
   }, [
+    clearLiveActivityResync,
     startBackgroundAudio,
     startLiveActivity,
+    scheduleLiveActivityResync,
     stopBackgroundAudio,
     stopLiveActivity,
     soundsReady,
@@ -473,10 +525,34 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
 
   useEffect(() => {
     return () => {
+      clearLiveActivityResync();
       stopLiveActivity();
       stopBackgroundAudio();
     };
-  }, [stopBackgroundAudio, stopLiveActivity]);
+  }, [clearLiveActivityResync, stopBackgroundAudio, stopLiveActivity]);
+
+  useEffect(() => {
+    if (Platform.OS !== 'ios') {
+      return;
+    }
+
+    const subscription = LiveActivity.addActivityUpdatesListener(({ activityID, activityState }) => {
+      if (!liveActivityIdRef.current || activityID !== liveActivityIdRef.current) {
+        return;
+      }
+
+      if (activityState === 'stale' || activityState === 'ended' || activityState === 'dismissed') {
+        liveActivityIdRef.current = null;
+        const latestState = timerStateRef.current;
+        if (latestState.status === 'running') {
+          startLiveActivity(latestState);
+          scheduleLiveActivityResync(latestState.currentStepIndex);
+        }
+      }
+    });
+
+    return () => subscription?.remove();
+  }, [scheduleLiveActivityResync, startLiveActivity]);
 
   useEffect(() => {
     if (timerState.status !== 'finished') {

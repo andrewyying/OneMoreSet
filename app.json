@@ -32,7 +32,8 @@
       "predictiveBackGestureEnabled": false
     },
     "plugins": [
-      "expo-live-activity"
+      "expo-live-activity",
+      "./plugins/withLiveActivityFrequentUpdates"
     ],
     "web": {
       "favicon": "./assets/favicon.png"
