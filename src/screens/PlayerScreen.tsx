@@ -1,8 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
+  AppState,
+  AppStateStatus,
   FlatList,
   Modal,
+  Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -11,15 +14,15 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Audio } from 'expo-av';
+import { Audio, InterruptionModeAndroid, InterruptionModeIOS } from 'expo-av';
 import * as Haptics from 'expo-haptics';
+import * as LiveActivity from 'expo-live-activity';
 import Svg, { Circle } from 'react-native-svg';
 
 import PrimaryButton from '../components/PrimaryButton';
 import { buildPhases, formatSeconds, Phase } from '../lib/time';
 import {
   createInitialTimerState,
-  getTotalRemainingMs,
   nextStep,
   pauseTimer,
   previousStep,
@@ -35,6 +38,23 @@ import { useSchedules } from '../store/schedules';
 import { RootStackParamList } from '../types/navigation';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Player'>;
+
+const LIVE_ACTIVITY_IMAGE_NAME = 'logo';
+const COUNTDOWN_CUE_WINDOW_MS = 900;
+const HALF_CUE_WINDOW_MS = 2000;
+
+const LIVE_ACTIVITY_CONFIG: LiveActivity.LiveActivityConfig = {
+  backgroundColor: '#0f172a',
+  titleColor: '#f8fafc',
+  subtitleColor: '#e2e8f0',
+  progressViewTint: '#0ea5e9',
+  progressViewLabelColor: '#f8fafc',
+  timerType: 'digital',
+  imagePosition: 'left',
+  imageAlign: 'center',
+  imageSize: { width: 32, height: 32 },
+  contentFit: 'contain',
+};
 
 const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
   const { scheduleId, startWithCountdown = false } = route.params;
@@ -63,38 +83,66 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
   const startSoundRef = useRef<Audio.Sound | null>(null);
   const halfSoundRef = useRef<Audio.Sound | null>(null);
   const lockSoundRef = useRef<Audio.Sound | null>(null);
+  const silenceSoundRef = useRef<Audio.Sound | null>(null);
+  const backgroundAudioActiveRef = useRef(false);
   const lastStepIndexRef = useRef(timerState.currentStepIndex);
   const lastStatusRef = useRef<TimerStatus>(timerState.status);
   const lastCountdownBeepRef = useRef<number | null>(null);
   const halfCueIndexRef = useRef<number | null>(null);
+  const liveActivityIdRef = useRef<string | null>(null);
+  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+  const timerStateRef = useRef(timerState);
+  const phasesRef = useRef(phases);
+  const scheduleRef = useRef(schedule);
   const [showExercises, setShowExercises] = useState(false);
   const [preStartCountdown, setPreStartCountdown] = useState<number | null>(null);
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const countdownStartedRef = useRef(false);
+  const [soundsReady, setSoundsReady] = useState(false);
   const completionRecordedRef = useRef(false);
+
+  const configureAudioMode = useCallback(async (staysActiveInBackground: boolean) => {
+    try {
+      const iosMode = InterruptionModeIOS?.DuckOthers ?? 2;
+      const androidMode = InterruptionModeAndroid?.DuckOthers ?? 2;
+      await Audio.setAudioModeAsync({
+        playsInSilentModeIOS: true,
+        staysActiveInBackground,
+        interruptionModeIOS: iosMode,
+        interruptionModeAndroid: androidMode,
+        shouldDuckAndroid: true,
+      });
+    } catch (error) {
+      console.warn('Audio mode failed', error);
+    }
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
 
     const loadSound = async () => {
+      await configureAudioMode(false);
       try {
-        await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
-        const [restResult, startResult, halfResult, lockResult] = await Promise.all([
+        const [restResult, startResult, halfResult, lockResult, silenceResult] = await Promise.all([
           Audio.Sound.createAsync(require('../../assets/sounds/beep.wav')),
           Audio.Sound.createAsync(require('../../assets/sounds/beep-high.wav')),
           Audio.Sound.createAsync(require('../../assets/sounds/tick.wav')),
           Audio.Sound.createAsync(require('../../assets/sounds/lock.wav')),
+          Audio.Sound.createAsync(require('../../assets/sounds/silence.wav')),
         ]);
         if (isMounted) {
           restSoundRef.current = restResult.sound;
           startSoundRef.current = startResult.sound;
           halfSoundRef.current = halfResult.sound;
           lockSoundRef.current = lockResult.sound;
+          silenceSoundRef.current = silenceResult.sound;
+          setSoundsReady(true);
         } else {
           await restResult.sound.unloadAsync();
           await startResult.sound.unloadAsync();
           await halfResult.sound.unloadAsync();
           await lockResult.sound.unloadAsync();
+          await silenceResult.sound.unloadAsync();
         }
       } catch (error) {
         console.warn('Failed to load cue sound', error);
@@ -121,8 +169,13 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
         lockSoundRef.current.unloadAsync();
         lockSoundRef.current = null;
       }
+      if (silenceSoundRef.current) {
+        silenceSoundRef.current.unloadAsync();
+        silenceSoundRef.current = null;
+      }
+      backgroundAudioActiveRef.current = false;
     };
-  }, []);
+  }, [configureAudioMode]);
 
   const triggerHaptic = useCallback(async () => {
     try {
@@ -176,9 +229,155 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
     }
   }, []);
 
+  const startBackgroundAudio = useCallback(async () => {
+    if (Platform.OS !== 'ios') {
+      return;
+    }
+
+    const sound = silenceSoundRef.current;
+    if (!sound || backgroundAudioActiveRef.current) {
+      return;
+    }
+
+    try {
+      await configureAudioMode(true);
+      const status = await sound.getStatusAsync();
+      if (status.isLoaded) {
+        await sound.setIsLoopingAsync(true);
+        await sound.setVolumeAsync(0);
+        if (!status.isPlaying) {
+          await sound.playAsync();
+        }
+        backgroundAudioActiveRef.current = true;
+      }
+    } catch (error) {
+      console.warn('Background audio failed', error);
+    }
+  }, [configureAudioMode]);
+
+  const stopBackgroundAudio = useCallback(async () => {
+    const sound = silenceSoundRef.current;
+    if (!sound || !backgroundAudioActiveRef.current) {
+      return;
+    }
+
+    try {
+      await sound.stopAsync();
+    } catch (error) {
+      console.warn('Stop background audio failed', error);
+    } finally {
+      backgroundAudioActiveRef.current = false;
+      await configureAudioMode(false);
+    }
+  }, [configureAudioMode]);
+
+  const buildLiveActivityState = useCallback((state: TimerState) => {
+    const activeSchedule = scheduleRef.current;
+    const activePhases = phasesRef.current;
+    if (!activeSchedule) {
+      return null;
+    }
+
+    const current = activePhases[state.currentStepIndex];
+    if (!current) {
+      return null;
+    }
+
+    const durationMs = current.durationSec * 1000;
+    if (durationMs <= 0) {
+      return null;
+    }
+    const stepStartedAt =
+      state.stepStartedAt ??
+      (state.status === 'running'
+        ? Date.now() - Math.max(0, durationMs - state.remainingMs)
+        : null);
+    const endDateMs = stepStartedAt ? stepStartedAt + durationMs : Date.now() + Math.max(0, state.remainingMs);
+
+    return {
+      title: activeSchedule.name,
+      subtitle: current.label,
+      progressBar: {
+        date: endDateMs,
+      },
+      imageName: LIVE_ACTIVITY_IMAGE_NAME,
+      dynamicIslandImageName: LIVE_ACTIVITY_IMAGE_NAME,
+    } satisfies LiveActivity.LiveActivityState;
+  }, []);
+
+  const startLiveActivity = useCallback((stateOverride?: TimerState) => {
+    if (Platform.OS !== 'ios') {
+      return;
+    }
+
+    const state = buildLiveActivityState(stateOverride ?? timerStateRef.current);
+    if (!state) {
+      return;
+    }
+
+    if (liveActivityIdRef.current) {
+      LiveActivity.updateActivity(liveActivityIdRef.current, state);
+      return;
+    }
+
+    const activityId = LiveActivity.startActivity(state, LIVE_ACTIVITY_CONFIG);
+    if (activityId) {
+      liveActivityIdRef.current = activityId;
+    }
+  }, [buildLiveActivityState]);
+
+  const updateLiveActivity = useCallback((stateOverride?: TimerState) => {
+    if (Platform.OS !== 'ios') {
+      return;
+    }
+
+    const activityId = liveActivityIdRef.current;
+    if (!activityId) {
+      return;
+    }
+
+    const state = buildLiveActivityState(stateOverride ?? timerStateRef.current);
+    if (!state) {
+      return;
+    }
+
+    LiveActivity.updateActivity(activityId, state);
+  }, [buildLiveActivityState]);
+
+  const stopLiveActivity = useCallback((stateOverride?: TimerState) => {
+    if (Platform.OS !== 'ios') {
+      return;
+    }
+
+    const activityId = liveActivityIdRef.current;
+    if (!activityId) {
+      return;
+    }
+
+    const state =
+      buildLiveActivityState(stateOverride ?? timerStateRef.current) ??
+      ({
+        title: scheduleRef.current?.name ?? 'Workout',
+      } satisfies LiveActivity.LiveActivityState);
+    LiveActivity.stopActivity(activityId, state);
+    liveActivityIdRef.current = null;
+  }, [buildLiveActivityState]);
+
   useEffect(() => {
     setTimerState(createInitialTimerState(phases));
   }, [phases]);
+
+  useEffect(() => {
+    timerStateRef.current = timerState;
+  }, [timerState]);
+
+  useEffect(() => {
+    phasesRef.current = phases;
+  }, [phases]);
+
+  useEffect(() => {
+    scheduleRef.current = schedule;
+  }, [schedule]);
 
   useEffect(() => {
     if (timerState.status !== 'running') {
@@ -187,7 +386,7 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
 
     const interval = setInterval(() => {
       setTimerState((prev) => tickTimer(prev, phases, Date.now()));
-    }, 10);
+    }, 200);
 
     return () => clearInterval(interval);
   }, [phases, timerState.status]);
@@ -209,19 +408,75 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
       } else if (step?.type === 'rest') {
         playLockSound();
       }
-      triggerHaptic();
+      if (appStateRef.current === 'active') {
+        triggerHaptic();
+      }
       halfCueIndexRef.current = null;
+      if (liveActivityIdRef.current) {
+        updateLiveActivity();
+      }
     }
-  }, [phases, playLockSound, playStartSound, timerState.currentStepIndex, triggerHaptic]);
+  }, [phases, playLockSound, playStartSound, timerState.currentStepIndex, triggerHaptic, updateLiveActivity]);
 
   useEffect(() => {
     if (timerState.status !== lastStatusRef.current) {
       if (timerState.status === 'finished') {
-        triggerHaptic();
+        if (appStateRef.current === 'active') {
+          triggerHaptic();
+        }
       }
       lastStatusRef.current = timerState.status;
     }
   }, [timerState.status, triggerHaptic]);
+
+  useEffect(() => {
+    lastCountdownBeepRef.current = null;
+  }, [timerState.currentStepIndex]);
+
+  useEffect(() => {
+    const handleAppStateChange = (nextState: AppStateStatus) => {
+      const prevState = appStateRef.current;
+      appStateRef.current = nextState;
+
+      if (prevState === 'background' && nextState === 'active') {
+        setTimerState((prev) => tickTimer(prev, phasesRef.current, Date.now()));
+      }
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    return () => subscription.remove();
+  }, []);
+
+  useEffect(() => {
+    if (timerState.status === 'running') {
+      if (soundsReady) {
+        startBackgroundAudio();
+      }
+      startLiveActivity(timerState);
+      return;
+    }
+
+    if (liveActivityIdRef.current) {
+      stopLiveActivity(timerState);
+    }
+    stopBackgroundAudio();
+  }, [
+    startBackgroundAudio,
+    startLiveActivity,
+    stopBackgroundAudio,
+    stopLiveActivity,
+    soundsReady,
+    timerState.status,
+    timerState.currentStepIndex,
+    timerState.stepStartedAt,
+  ]);
+
+  useEffect(() => {
+    return () => {
+      stopLiveActivity();
+      stopBackgroundAudio();
+    };
+  }, [stopBackgroundAudio, stopLiveActivity]);
 
   useEffect(() => {
     if (timerState.status !== 'finished') {
@@ -253,18 +508,33 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
       lastCountdownBeepRef.current = null;
       return;
     }
-
-    const remainingSec = Math.max(0, Math.ceil(timerState.remainingMs / 1000));
-
-    if ([3, 2, 1].includes(remainingSec)) {
-      if (lastCountdownBeepRef.current !== remainingSec) {
-        playBeepSound();
-        lastCountdownBeepRef.current = remainingSec;
-      }
-    } else if (remainingSec > 3) {
-      lastCountdownBeepRef.current = null;
+    const current = phases[timerState.currentStepIndex];
+    if (!current) {
+      return;
     }
-  }, [phases, playBeepSound, timerState.currentStepIndex, timerState.remainingMs, timerState.status]);
+
+    const durationMs = current.durationSec * 1000;
+    if (durationMs <= 0 || !timerState.stepStartedAt) {
+      return;
+    }
+
+    const endDateMs = timerState.stepStartedAt + durationMs;
+    const now = Date.now();
+    const cueSeconds = [1, 2, 3];
+    const cueToPlay = cueSeconds.find((seconds) => {
+      if (lastCountdownBeepRef.current === seconds) {
+        return false;
+      }
+      const cueTime = endDateMs - seconds * 1000;
+      const diff = now - cueTime;
+      return diff >= 0 && diff <= COUNTDOWN_CUE_WINDOW_MS;
+    });
+
+    if (cueToPlay) {
+      playBeepSound();
+      lastCountdownBeepRef.current = cueToPlay;
+    }
+  }, [phases, playBeepSound, timerState.currentStepIndex, timerState.remainingMs, timerState.status, timerState.stepStartedAt]);
 
   useEffect(() => {
     if (timerState.status !== 'running') {
@@ -281,14 +551,27 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
       return;
     }
 
-    const remainingMs = timerState.remainingMs;
-    if (remainingMs <= durationMs / 2) {
+    if (!timerState.stepStartedAt) {
+      return;
+    }
+
+    const now = Date.now();
+    const halfTimeMs = timerState.stepStartedAt + durationMs / 2;
+    const diff = now - halfTimeMs;
+    if (diff >= 0 && diff <= HALF_CUE_WINDOW_MS) {
       if (halfCueIndexRef.current !== timerState.currentStepIndex) {
         playHalfSound();
         halfCueIndexRef.current = timerState.currentStepIndex;
       }
     }
-  }, [phases, playHalfSound, timerState.currentStepIndex, timerState.remainingMs, timerState.status]);
+  }, [
+    phases,
+    playHalfSound,
+    timerState.currentStepIndex,
+    timerState.remainingMs,
+    timerState.status,
+    timerState.stepStartedAt,
+  ]);
 
   useEffect(() => {
     if (countdownStartedRef.current) {
