@@ -49,9 +49,6 @@ const LIVE_ACTIVITY_CONFIG: LiveActivity.LiveActivityConfig = {
   backgroundColor: '#0f172a',
   titleColor: '#f8fafc',
   subtitleColor: '#e2e8f0',
-  progressViewTint: '#0ea5e9',
-  progressViewLabelColor: '#f8fafc',
-  timerType: 'digital',
   imagePosition: 'left',
   imageAlign: 'center',
   imageSize: { width: 32, height: 32 },
@@ -287,23 +284,9 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
       return null;
     }
 
-    const durationMs = current.durationSec * 1000;
-    if (durationMs <= 0) {
-      return null;
-    }
-    const stepStartedAt =
-      state.stepStartedAt ??
-      (state.status === 'running'
-        ? Date.now() - Math.max(0, durationMs - state.remainingMs)
-        : null);
-    const endDateMs = stepStartedAt ? stepStartedAt + durationMs : Date.now() + Math.max(0, state.remainingMs);
-
     return {
       title: activeSchedule.name,
       subtitle: current.label,
-      progressBar: {
-        date: endDateMs,
-      },
       imageName: LIVE_ACTIVITY_IMAGE_NAME,
       dynamicIslandImageName: LIVE_ACTIVITY_IMAGE_NAME,
     } satisfies LiveActivity.LiveActivityState;
