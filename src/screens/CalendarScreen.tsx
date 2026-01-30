@@ -220,37 +220,40 @@ const CalendarScreen: React.FC = () => {
               return <View key={cell.key} style={[styles.dayCell, styles.dayCellEmpty]} />;
             }
 
-            const dayKey = toDateKey(cell.date);
+            const cellDate = cell.date;
+            const dayKey = toDateKey(cellDate);
             const isSelected = dayKey === selectedKey;
             const isToday = dayKey === toDateKey(today);
             const completionsForDay = completionsByDay.get(dayKey) ?? [];
             const hasCompletion = completionsForDay.length > 0;
 
             return (
-              <Pressable
-                key={cell.key}
-                onPress={() => handleSelectDate(cell.date as Date)}
-                style={({ pressed }) => [
-                  styles.dayCell,
-                  hasCompletion ? styles.dayCellHighlighted : undefined,
-                  isSelected ? styles.dayCellSelected : undefined,
-                  isToday ? styles.dayCellToday : undefined,
-                  pressed ? styles.dayCellPressed : undefined,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.dayText,
-                    isSelected ? styles.dayTextSelected : undefined,
-                    hasCompletion ? styles.dayTextHighlighted : undefined,
-                  ]}
-                >
-                  {cell.date.getDate()}
-                </Text>
-                {hasCompletion ? (
-                  <View style={[styles.dayDot, isSelected ? styles.dayDotSelected : undefined]} />
-                ) : (
-                  <View style={styles.dayDotPlaceholder} />
+              <Pressable key={cell.key} onPress={() => handleSelectDate(cellDate)} style={styles.dayCell}>
+                {({ pressed }) => (
+                  <View
+                    style={[
+                      styles.dayBubble,
+                      hasCompletion ? styles.dayBubbleHighlighted : undefined,
+                      isSelected ? styles.dayBubbleSelected : undefined,
+                      isToday ? styles.dayBubbleToday : undefined,
+                      pressed ? styles.dayBubblePressed : undefined,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.dayText,
+                        isSelected ? styles.dayTextSelected : undefined,
+                        hasCompletion ? styles.dayTextHighlighted : undefined,
+                      ]}
+                    >
+                      {cellDate.getDate()}
+                    </Text>
+                    {hasCompletion ? (
+                      <View style={[styles.dayDot, isSelected ? styles.dayDotSelected : undefined]} />
+                    ) : (
+                      <View style={styles.dayDotPlaceholder} />
+                    )}
+                  </View>
                 )}
               </Pressable>
             );
@@ -400,25 +403,29 @@ const styles = StyleSheet.create({
   },
   dayCell: {
     width: '14.285714%',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-    borderRadius: 12,
+    padding: 3,
     marginBottom: 6,
   },
   dayCellEmpty: {
     opacity: 0,
   },
-  dayCellPressed: {
+  dayBubble: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    borderRadius: 12,
+    width: '100%',
+  },
+  dayBubblePressed: {
     opacity: 0.7,
   },
-  dayCellHighlighted: {
+  dayBubbleHighlighted: {
     backgroundColor: '#e0f2fe',
   },
-  dayCellSelected: {
+  dayBubbleSelected: {
     backgroundColor: '#0ea5e9',
   },
-  dayCellToday: {
+  dayBubbleToday: {
     borderWidth: 1,
     borderColor: '#0ea5e9',
   },
