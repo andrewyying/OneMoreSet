@@ -23,3 +23,12 @@ export type ScheduleDraft = {
 
 export type ScheduleUpdate = Partial<ScheduleDraft>;
 
+export type WorkoutCompletion = {
+  id: string;
+  scheduleId: string;
+  scheduleName: string;
+  steps: Step[];
+  restBetweenSec: number;
+  completedAt: number;
+};
+

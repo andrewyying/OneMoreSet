@@ -4,26 +4,30 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import AppNavigator from './src/navigation/AppNavigator';
+import { CompletionProvider, useCompletions } from './src/store/completions';
 import { ScheduleProvider, useSchedules } from './src/store/schedules';
 
 const AppStateGate: React.FC = () => {
-  const { status, error } = useSchedules();
+  const { status: scheduleStatus, error: scheduleError } = useSchedules();
+  const { status: completionStatus, error: completionError } = useCompletions();
+  const hasError = scheduleStatus === 'error' || completionStatus === 'error';
+  const errorMessage = [scheduleError, completionError].filter(Boolean).join('\n');
 
-  if (status === 'loading') {
+  if (scheduleStatus === 'loading' || completionStatus === 'loading') {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" />
-        <Text style={styles.subtitle}>Loading schedules...</Text>
+        <Text style={styles.subtitle}>Loading your data...</Text>
       </View>
     );
   }
 
-  if (status === 'error') {
+  if (hasError) {
     return (
       <View style={styles.centered}>
         <Text style={styles.title}>OneMoreSet</Text>
-        <Text style={[styles.subtitle, styles.errorText]}>Unable to load schedules.</Text>
-        {error ? <Text style={styles.detailText}>{error}</Text> : null}
+        <Text style={[styles.subtitle, styles.errorText]}>Unable to load app data.</Text>
+        {errorMessage ? <Text style={styles.detailText}>{errorMessage}</Text> : null}
       </View>
     );
   }
@@ -34,10 +38,12 @@ const AppStateGate: React.FC = () => {
 export default function App() {
   return (
     <ScheduleProvider>
-      <SafeAreaProvider>
-        <StatusBar style="dark" />
-        <AppStateGate />
-      </SafeAreaProvider>
+      <CompletionProvider>
+        <SafeAreaProvider>
+          <StatusBar style="dark" />
+          <AppStateGate />
+        </SafeAreaProvider>
+      </CompletionProvider>
     </ScheduleProvider>
   );
 }

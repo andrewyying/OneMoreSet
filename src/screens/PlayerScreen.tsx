@@ -30,6 +30,7 @@ import {
   TimerState,
   TimerStatus,
 } from '../lib/timer';
+import { useCompletions } from '../store/completions';
 import { useSchedules } from '../store/schedules';
 import { RootStackParamList } from '../types/navigation';
 
@@ -38,6 +39,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Player'>;
 const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
   const { scheduleId, startWithCountdown = false } = route.params;
   const { schedules } = useSchedules();
+  const { recordCompletion } = useCompletions();
   const schedule = schedules.find((item) => item.id === scheduleId);
   const phases = useMemo<Phase[]>(() => {
     if (!schedule) {
@@ -69,6 +71,7 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
   const [preStartCountdown, setPreStartCountdown] = useState<number | null>(null);
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const countdownStartedRef = useRef(false);
+  const completionRecordedRef = useRef(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -219,6 +222,31 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
       lastStatusRef.current = timerState.status;
     }
   }, [timerState.status, triggerHaptic]);
+
+  useEffect(() => {
+    if (timerState.status !== 'finished') {
+      completionRecordedRef.current = false;
+    }
+  }, [scheduleId, timerState.status]);
+
+  useEffect(() => {
+    if (!schedule || timerState.status !== 'finished') {
+      return;
+    }
+
+    if (completionRecordedRef.current) {
+      return;
+    }
+
+    completionRecordedRef.current = true;
+    recordCompletion({
+      scheduleId: schedule.id,
+      scheduleName: schedule.name,
+      steps: schedule.steps,
+      restBetweenSec: schedule.restBetweenSec,
+      completedAt: Date.now(),
+    });
+  }, [recordCompletion, schedule, timerState.status]);
 
   useEffect(() => {
     if (timerState.status !== 'running') {
