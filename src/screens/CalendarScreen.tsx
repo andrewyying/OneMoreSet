@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -81,9 +81,31 @@ const getExerciseCount = (completion: WorkoutCompletion) =>
 
 const CalendarScreen: React.FC = () => {
   const { completions, status, error } = useCompletions();
-  const today = useMemo(() => startOfDay(new Date()), []);
+  const [today, setToday] = useState(() => startOfDay(new Date()));
   const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(today));
   const [selectedDate, setSelectedDate] = useState(() => today);
+
+  useEffect(() => {
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    const scheduleNextMidnight = () => {
+      const now = new Date();
+      const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+      const msUntilMidnight = Math.max(0, nextMidnight.getTime() - now.getTime() + 1000);
+      timeoutId = setTimeout(() => {
+        setToday(startOfDay(new Date()));
+        scheduleNextMidnight();
+      }, msUntilMidnight);
+    };
+
+    scheduleNextMidnight();
+
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, []);
 
   const completionsByDay = useMemo(() => {
     const map = new Map<string, WorkoutCompletion[]>();
