@@ -36,6 +36,17 @@ const MONTH_LABELS = [
 
 const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const CALENDAR_HORIZONTAL_PADDING = 16;
+const DAY_CELL_PADDING = 3;
+const DAY_CELL_MARGIN_BOTTOM = 6;
+const DAY_BUBBLE_PADDING_VERTICAL = 8;
+const DAY_TEXT_FONT_SIZE = 14;
+const DAY_TEXT_LINE_HEIGHT = 16;
+const DAY_DOT_SIZE = 6;
+const DAY_DOT_MARGIN_TOP = 6;
+const DAY_BUBBLE_HEIGHT =
+  DAY_BUBBLE_PADDING_VERTICAL * 2 + DAY_TEXT_LINE_HEIGHT + DAY_DOT_MARGIN_TOP + DAY_DOT_SIZE;
+const DAY_CELL_HEIGHT = DAY_BUBBLE_HEIGHT + DAY_CELL_PADDING * 2;
+const ROW_HEIGHT = DAY_CELL_HEIGHT + DAY_CELL_MARGIN_BOTTOM;
 
 const pad2 = (value: number) => value.toString().padStart(2, '0');
 
@@ -159,6 +170,8 @@ const CalendarScreen: React.FC = () => {
   }, [completions]);
 
   const calendarCells = useMemo(() => buildCalendarCells(currentMonth), [currentMonth]);
+  const currentRowCount = useMemo(() => Math.max(1, calendarCells.length / 7), [calendarCells.length]);
+  const gridHeight = useMemo(() => currentRowCount * ROW_HEIGHT, [currentRowCount]);
   const prevMonth = useMemo(() => addMonths(currentMonth, -1), [currentMonth]);
   const nextMonth = useMemo(() => addMonths(currentMonth, 1), [currentMonth]);
   const prevCalendarCells = useMemo(() => buildCalendarCells(prevMonth), [prevMonth]);
@@ -195,6 +208,7 @@ const CalendarScreen: React.FC = () => {
   }, []);
 
   const gridPageStyle = useMemo(() => [styles.gridPage, { width: gridWidth }], [gridWidth]);
+  const gridWrapperStyle = useMemo(() => [styles.gridWrapper, { height: gridHeight }], [gridHeight]);
 
   const renderCalendarPage = useCallback(
     (cells: CalendarCell[], keyPrefix: string) =>
@@ -226,8 +240,8 @@ const CalendarScreen: React.FC = () => {
                 <Text
                   style={[
                     styles.dayText,
-                    isSelected ? styles.dayTextSelected : undefined,
                     hasCompletion ? styles.dayTextHighlighted : undefined,
+                    isSelected ? styles.dayTextSelected : undefined,
                   ]}
                 >
                   {cellDate.getDate()}
@@ -339,7 +353,7 @@ const CalendarScreen: React.FC = () => {
           ))}
         </View>
 
-        <View style={styles.gridWrapper}>
+        <View style={gridWrapperStyle}>
           <ScrollView
             ref={gridScrollRef}
             horizontal
@@ -509,8 +523,9 @@ const styles = StyleSheet.create({
   },
   dayCell: {
     width: '14.285714%',
-    padding: 3,
-    marginBottom: 6,
+    padding: DAY_CELL_PADDING,
+    marginBottom: DAY_CELL_MARGIN_BOTTOM,
+    height: DAY_CELL_HEIGHT,
   },
   dayCellEmpty: {
     opacity: 0,
@@ -518,7 +533,8 @@ const styles = StyleSheet.create({
   dayBubble: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
+    flex: 1,
+    paddingVertical: DAY_BUBBLE_PADDING_VERTICAL,
     borderRadius: 12,
     width: '100%',
   },
@@ -536,7 +552,8 @@ const styles = StyleSheet.create({
     borderColor: '#0ea5e9',
   },
   dayText: {
-    fontSize: 14,
+    fontSize: DAY_TEXT_FONT_SIZE,
+    lineHeight: DAY_TEXT_LINE_HEIGHT,
     fontWeight: '600',
     color: '#0f172a',
   },
@@ -547,19 +564,19 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   dayDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: DAY_DOT_SIZE,
+    height: DAY_DOT_SIZE,
+    borderRadius: DAY_DOT_SIZE / 2,
     backgroundColor: '#0ea5e9',
-    marginTop: 6,
+    marginTop: DAY_DOT_MARGIN_TOP,
   },
   dayDotSelected: {
     backgroundColor: '#fff',
   },
   dayDotPlaceholder: {
-    width: 6,
-    height: 6,
-    marginTop: 6,
+    width: DAY_DOT_SIZE,
+    height: DAY_DOT_SIZE,
+    marginTop: DAY_DOT_MARGIN_TOP,
   },
   detailCard: {
     backgroundColor: '#fff',
@@ -567,7 +584,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e2e8f0',
     padding: 16,
-    marginTop: 18,
   },
   detailTitle: {
     fontSize: 18,
