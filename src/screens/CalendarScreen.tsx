@@ -1,5 +1,15 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Animated,
+  Easing,
+  PanResponder,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 
@@ -81,9 +91,12 @@ const getExerciseCount = (completion: WorkoutCompletion) =>
 
 const CalendarScreen: React.FC = () => {
   const { completions, status, error } = useCompletions();
+  const { width } = useWindowDimensions();
   const [today, setToday] = useState(() => startOfDay(new Date()));
   const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(today));
   const [selectedDate, setSelectedDate] = useState(() => today);
+  const translateX = useRef(new Animated.Value(0)).current;
+  const isAnimatingRef = useRef(false);
 
   useEffect(() => {
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -132,21 +145,115 @@ const CalendarScreen: React.FC = () => {
     return Array.from(completionsByDay.keys()).filter((key) => key.startsWith(monthPrefix)).length;
   }, [completionsByDay, currentMonth]);
 
-  const handleShiftMonth = (delta: number) => {
-    const nextMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + delta, 1);
-    setCurrentMonth(nextMonth);
-    setSelectedDate(startOfDay(nextMonth));
-  };
+  const handleShiftMonth = useCallback((delta: number) => {
+    setCurrentMonth((prev) => {
+      const nextMonth = new Date(prev.getFullYear(), prev.getMonth() + delta, 1);
+      setSelectedDate(startOfDay(nextMonth));
+      return nextMonth;
+    });
+  }, []);
 
-  const handleToday = () => {
+  const handleToday = useCallback(() => {
     const next = startOfMonth(today);
     setCurrentMonth(next);
     setSelectedDate(today);
-  };
+  }, [today]);
 
-  const handleSelectDate = (date: Date) => {
+  const handleSelectDate = useCallback((date: Date) => {
     setSelectedDate(startOfDay(date));
-  };
+  }, []);
+
+  const springBack = useCallback(() => {
+    Animated.spring(translateX, {
+      toValue: 0,
+      damping: 18,
+      stiffness: 190,
+      mass: 0.7,
+      useNativeDriver: true,
+    }).start();
+  }, [translateX]);
+
+  const animateMonthShift = useCallback(
+    (delta: number) => {
+      if (isAnimatingRef.current) {
+        return;
+      }
+
+      isAnimatingRef.current = true;
+      const distance = Math.max(1, width);
+      const target = delta > 0 ? -distance : distance;
+
+      Animated.timing(translateX, {
+        toValue: target,
+        duration: 240,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start(({ finished }) => {
+        if (!finished) {
+          isAnimatingRef.current = false;
+          return;
+        }
+
+        handleShiftMonth(delta);
+        translateX.setValue(-target);
+
+        Animated.timing(translateX, {
+          toValue: 0,
+          duration: 240,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }).start(() => {
+          isAnimatingRef.current = false;
+        });
+      });
+    },
+    [handleShiftMonth, translateX, width],
+  );
+
+  const swipeResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_, gestureState) => {
+          if (isAnimatingRef.current) {
+            return false;
+          }
+          const { dx, dy } = gestureState;
+          return Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy);
+        },
+        onPanResponderMove: (_, gestureState) => {
+          if (isAnimatingRef.current) {
+            return;
+          }
+
+          const clampedDx = Math.max(-width, Math.min(gestureState.dx, width));
+          translateX.setValue(clampedDx);
+        },
+        onPanResponderRelease: (_, gestureState) => {
+          if (isAnimatingRef.current) {
+            return;
+          }
+
+          const { dx, dy, vx } = gestureState;
+          const isHorizontal = Math.abs(dx) > Math.abs(dy);
+          const distanceThreshold = Math.min(120, Math.max(48, width * 0.25));
+          const isSwipe = Math.abs(dx) > distanceThreshold || Math.abs(vx) > 0.45;
+
+          if (!isHorizontal || !isSwipe) {
+            springBack();
+            return;
+          }
+
+          animateMonthShift(dx < 0 ? 1 : -1);
+        },
+        onPanResponderTerminate: () => {
+          if (isAnimatingRef.current) {
+            return;
+          }
+          springBack();
+        },
+      }),
+    [animateMonthShift, springBack, translateX, width],
+  );
 
   if (status === 'loading') {
     return (
@@ -189,7 +296,7 @@ const CalendarScreen: React.FC = () => {
       <View style={styles.calendar}>
         <View style={styles.monthRow}>
           <Pressable
-            onPress={() => handleShiftMonth(-1)}
+            onPress={() => animateMonthShift(-1)}
             style={({ pressed }) => [styles.navButton, pressed ? styles.navButtonPressed : undefined]}
           >
             <MaterialIcons name="chevron-left" size={24} color="#0f172a" />
@@ -199,7 +306,7 @@ const CalendarScreen: React.FC = () => {
             <Text style={styles.monthMeta}>{completedDaysThisMonth} workout days this month</Text>
           </View>
           <Pressable
-            onPress={() => handleShiftMonth(1)}
+            onPress={() => animateMonthShift(1)}
             style={({ pressed }) => [styles.navButton, pressed ? styles.navButtonPressed : undefined]}
           >
             <MaterialIcons name="chevron-right" size={24} color="#0f172a" />
@@ -214,50 +321,52 @@ const CalendarScreen: React.FC = () => {
           ))}
         </View>
 
-        <View style={styles.grid}>
-          {calendarCells.map((cell) => {
-            if (!cell.date) {
-              return <View key={cell.key} style={[styles.dayCell, styles.dayCellEmpty]} />;
-            }
+        <View style={styles.gridWrapper} {...swipeResponder.panHandlers}>
+          <Animated.View style={[styles.grid, { transform: [{ translateX }] }]}>
+            {calendarCells.map((cell) => {
+              if (!cell.date) {
+                return <View key={cell.key} style={[styles.dayCell, styles.dayCellEmpty]} />;
+              }
 
-            const cellDate = cell.date;
-            const dayKey = toDateKey(cellDate);
-            const isSelected = dayKey === selectedKey;
-            const isToday = dayKey === toDateKey(today);
-            const completionsForDay = completionsByDay.get(dayKey) ?? [];
-            const hasCompletion = completionsForDay.length > 0;
+              const cellDate = cell.date;
+              const dayKey = toDateKey(cellDate);
+              const isSelected = dayKey === selectedKey;
+              const isToday = dayKey === toDateKey(today);
+              const completionsForDay = completionsByDay.get(dayKey) ?? [];
+              const hasCompletion = completionsForDay.length > 0;
 
-            return (
-              <Pressable key={cell.key} onPress={() => handleSelectDate(cellDate)} style={styles.dayCell}>
-                {({ pressed }) => (
-                  <View
-                    style={[
-                      styles.dayBubble,
-                      hasCompletion ? styles.dayBubbleHighlighted : undefined,
-                      isSelected ? styles.dayBubbleSelected : undefined,
-                      isToday ? styles.dayBubbleToday : undefined,
-                      pressed ? styles.dayBubblePressed : undefined,
-                    ]}
-                  >
-                    <Text
+              return (
+                <Pressable key={cell.key} onPress={() => handleSelectDate(cellDate)} style={styles.dayCell}>
+                  {({ pressed }) => (
+                    <View
                       style={[
-                        styles.dayText,
-                        isSelected ? styles.dayTextSelected : undefined,
-                        hasCompletion ? styles.dayTextHighlighted : undefined,
+                        styles.dayBubble,
+                        hasCompletion ? styles.dayBubbleHighlighted : undefined,
+                        isSelected ? styles.dayBubbleSelected : undefined,
+                        isToday ? styles.dayBubbleToday : undefined,
+                        pressed ? styles.dayBubblePressed : undefined,
                       ]}
                     >
-                      {cellDate.getDate()}
-                    </Text>
-                    {hasCompletion ? (
-                      <View style={[styles.dayDot, isSelected ? styles.dayDotSelected : undefined]} />
-                    ) : (
-                      <View style={styles.dayDotPlaceholder} />
-                    )}
-                  </View>
-                )}
-              </Pressable>
-            );
-          })}
+                      <Text
+                        style={[
+                          styles.dayText,
+                          isSelected ? styles.dayTextSelected : undefined,
+                          hasCompletion ? styles.dayTextHighlighted : undefined,
+                        ]}
+                      >
+                        {cellDate.getDate()}
+                      </Text>
+                      {hasCompletion ? (
+                        <View style={[styles.dayDot, isSelected ? styles.dayDotSelected : undefined]} />
+                      ) : (
+                        <View style={styles.dayDotPlaceholder} />
+                      )}
+                    </View>
+                  )}
+                </Pressable>
+              );
+            })}
+          </Animated.View>
         </View>
       </View>
       
@@ -396,6 +505,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: '#94a3b8',
+  },
+  gridWrapper: {
+    overflow: 'hidden',
   },
   grid: {
     flexDirection: 'row',
