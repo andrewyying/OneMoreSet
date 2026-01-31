@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Easing,
@@ -38,6 +38,7 @@ const MONTH_LABELS = [
 ];
 
 const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const CALENDAR_HORIZONTAL_PADDING = 16;
 
 const pad2 = (value: number) => value.toString().padStart(2, '0');
 
@@ -47,6 +48,8 @@ const toDateKey = (date: Date) =>
 const startOfDay = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
 
 const startOfMonth = (date: Date) => new Date(date.getFullYear(), date.getMonth(), 1);
+
+const addMonths = (date: Date, delta: number) => new Date(date.getFullYear(), date.getMonth() + delta, 1);
 
 const formatMonthLabel = (date: Date) => `${MONTH_LABELS[date.getMonth()]} ${date.getFullYear()}`;
 
@@ -95,8 +98,14 @@ const CalendarScreen: React.FC = () => {
   const [today, setToday] = useState(() => startOfDay(new Date()));
   const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(today));
   const [selectedDate, setSelectedDate] = useState(() => today);
-  const translateX = useRef(new Animated.Value(0)).current;
+  const gridWidth = useMemo(
+    () => Math.max(1, width - CALENDAR_HORIZONTAL_PADDING * 2),
+    [width],
+  );
+  const baseOffset = useMemo(() => -gridWidth, [gridWidth]);
+  const translateX = useRef(new Animated.Value(baseOffset)).current;
   const isAnimatingRef = useRef(false);
+  const pendingShiftRef = useRef(false);
 
   useEffect(() => {
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -120,6 +129,23 @@ const CalendarScreen: React.FC = () => {
     };
   }, []);
 
+  useEffect(() => {
+    translateX.stopAnimation();
+    translateX.setValue(baseOffset);
+    isAnimatingRef.current = false;
+    pendingShiftRef.current = false;
+  }, [baseOffset, translateX]);
+
+  useLayoutEffect(() => {
+    if (!pendingShiftRef.current) {
+      return;
+    }
+
+    translateX.setValue(baseOffset);
+    pendingShiftRef.current = false;
+    isAnimatingRef.current = false;
+  }, [baseOffset, currentMonth, translateX]);
+
   const completionsByDay = useMemo(() => {
     const map = new Map<string, WorkoutCompletion[]>();
     completions.forEach((completion) => {
@@ -138,7 +164,20 @@ const CalendarScreen: React.FC = () => {
   }, [completions]);
 
   const calendarCells = useMemo(() => buildCalendarCells(currentMonth), [currentMonth]);
-  const selectedKey = toDateKey(selectedDate);
+  const prevMonth = useMemo(() => addMonths(currentMonth, -1), [currentMonth]);
+  const nextMonth = useMemo(() => addMonths(currentMonth, 1), [currentMonth]);
+  const prevCalendarCells = useMemo(() => buildCalendarCells(prevMonth), [prevMonth]);
+  const nextCalendarCells = useMemo(() => buildCalendarCells(nextMonth), [nextMonth]);
+  const selectedKey = useMemo(() => toDateKey(selectedDate), [selectedDate]);
+  const todayKey = useMemo(() => toDateKey(today), [today]);
+  const calendarPages = useMemo(
+    () => [
+      { key: 'prev', cells: prevCalendarCells },
+      { key: 'current', cells: calendarCells },
+      { key: 'next', cells: nextCalendarCells },
+    ],
+    [calendarCells, nextCalendarCells, prevCalendarCells],
+  );
   const selectedCompletions = completionsByDay.get(selectedKey) ?? [];
   const completedDaysThisMonth = useMemo(() => {
     const monthPrefix = `${currentMonth.getFullYear()}-${pad2(currentMonth.getMonth() + 1)}-`;
@@ -146,32 +185,87 @@ const CalendarScreen: React.FC = () => {
   }, [completionsByDay, currentMonth]);
 
   const handleShiftMonth = useCallback((delta: number) => {
-    setCurrentMonth((prev) => {
-      const nextMonth = new Date(prev.getFullYear(), prev.getMonth() + delta, 1);
-      setSelectedDate(startOfDay(nextMonth));
-      return nextMonth;
-    });
+    setCurrentMonth((prev) => addMonths(prev, delta));
   }, []);
 
   const handleToday = useCallback(() => {
+    translateX.stopAnimation();
+    translateX.setValue(baseOffset);
+    isAnimatingRef.current = false;
+    pendingShiftRef.current = false;
     const next = startOfMonth(today);
     setCurrentMonth(next);
     setSelectedDate(today);
-  }, [today]);
+  }, [baseOffset, today, translateX]);
 
   const handleSelectDate = useCallback((date: Date) => {
     setSelectedDate(startOfDay(date));
   }, []);
 
+  const gridPageStyle = useMemo(() => [styles.gridPage, { width: gridWidth }], [gridWidth]);
+  const gridTrackStyle = useMemo(
+    () => [styles.gridTrack, { width: gridWidth * 3, transform: [{ translateX }] }],
+    [gridWidth, translateX],
+  );
+
+  const renderCalendarPage = useCallback(
+    (cells: CalendarCell[], keyPrefix: string) =>
+      cells.map((cell) => {
+        const key = `${keyPrefix}-${cell.key}`;
+        if (!cell.date) {
+          return <View key={key} style={[styles.dayCell, styles.dayCellEmpty]} />;
+        }
+
+        const cellDate = cell.date;
+        const dayKey = toDateKey(cellDate);
+        const isSelected = dayKey === selectedKey;
+        const isToday = dayKey === todayKey;
+        const completionsForDay = completionsByDay.get(dayKey) ?? [];
+        const hasCompletion = completionsForDay.length > 0;
+
+        return (
+          <Pressable key={key} onPress={() => handleSelectDate(cellDate)} style={styles.dayCell}>
+            {({ pressed }) => (
+              <View
+                style={[
+                  styles.dayBubble,
+                  hasCompletion ? styles.dayBubbleHighlighted : undefined,
+                  isSelected ? styles.dayBubbleSelected : undefined,
+                  isToday ? styles.dayBubbleToday : undefined,
+                  pressed ? styles.dayBubblePressed : undefined,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.dayText,
+                    isSelected ? styles.dayTextSelected : undefined,
+                    hasCompletion ? styles.dayTextHighlighted : undefined,
+                  ]}
+                >
+                  {cellDate.getDate()}
+                </Text>
+                {hasCompletion ? (
+                  <View style={[styles.dayDot, isSelected ? styles.dayDotSelected : undefined]} />
+                ) : (
+                  <View style={styles.dayDotPlaceholder} />
+                )}
+              </View>
+            )}
+          </Pressable>
+        );
+      }),
+    [completionsByDay, handleSelectDate, selectedKey, todayKey],
+  );
+
   const springBack = useCallback(() => {
     Animated.spring(translateX, {
-      toValue: 0,
+      toValue: baseOffset,
       damping: 18,
       stiffness: 190,
       mass: 0.7,
       useNativeDriver: true,
     }).start();
-  }, [translateX]);
+  }, [baseOffset, translateX]);
 
   const animateMonthShift = useCallback(
     (delta: number) => {
@@ -180,8 +274,7 @@ const CalendarScreen: React.FC = () => {
       }
 
       isAnimatingRef.current = true;
-      const distance = Math.max(1, width);
-      const target = delta > 0 ? -distance : distance;
+      const target = delta > 0 ? baseOffset - gridWidth : baseOffset + gridWidth;
 
       Animated.timing(translateX, {
         toValue: target,
@@ -191,23 +284,15 @@ const CalendarScreen: React.FC = () => {
       }).start(({ finished }) => {
         if (!finished) {
           isAnimatingRef.current = false;
+          springBack();
           return;
         }
 
+        pendingShiftRef.current = true;
         handleShiftMonth(delta);
-        translateX.setValue(-target);
-
-        Animated.timing(translateX, {
-          toValue: 0,
-          duration: 240,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }).start(() => {
-          isAnimatingRef.current = false;
-        });
       });
     },
-    [handleShiftMonth, translateX, width],
+    [baseOffset, gridWidth, handleShiftMonth, springBack, translateX],
   );
 
   const swipeResponder = useMemo(
@@ -225,8 +310,8 @@ const CalendarScreen: React.FC = () => {
             return;
           }
 
-          const clampedDx = Math.max(-width, Math.min(gestureState.dx, width));
-          translateX.setValue(clampedDx);
+          const clampedDx = Math.max(-gridWidth, Math.min(gestureState.dx, gridWidth));
+          translateX.setValue(baseOffset + clampedDx);
         },
         onPanResponderRelease: (_, gestureState) => {
           if (isAnimatingRef.current) {
@@ -235,7 +320,7 @@ const CalendarScreen: React.FC = () => {
 
           const { dx, dy, vx } = gestureState;
           const isHorizontal = Math.abs(dx) > Math.abs(dy);
-          const distanceThreshold = Math.min(120, Math.max(48, width * 0.25));
+          const distanceThreshold = Math.min(120, Math.max(48, gridWidth * 0.25));
           const isSwipe = Math.abs(dx) > distanceThreshold || Math.abs(vx) > 0.45;
 
           if (!isHorizontal || !isSwipe) {
@@ -252,7 +337,7 @@ const CalendarScreen: React.FC = () => {
           springBack();
         },
       }),
-    [animateMonthShift, springBack, translateX, width],
+    [animateMonthShift, baseOffset, gridWidth, springBack, translateX],
   );
 
   if (status === 'loading') {
@@ -322,50 +407,12 @@ const CalendarScreen: React.FC = () => {
         </View>
 
         <View style={styles.gridWrapper} {...swipeResponder.panHandlers}>
-          <Animated.View style={[styles.grid, { transform: [{ translateX }] }]}>
-            {calendarCells.map((cell) => {
-              if (!cell.date) {
-                return <View key={cell.key} style={[styles.dayCell, styles.dayCellEmpty]} />;
-              }
-
-              const cellDate = cell.date;
-              const dayKey = toDateKey(cellDate);
-              const isSelected = dayKey === selectedKey;
-              const isToday = dayKey === toDateKey(today);
-              const completionsForDay = completionsByDay.get(dayKey) ?? [];
-              const hasCompletion = completionsForDay.length > 0;
-
-              return (
-                <Pressable key={cell.key} onPress={() => handleSelectDate(cellDate)} style={styles.dayCell}>
-                  {({ pressed }) => (
-                    <View
-                      style={[
-                        styles.dayBubble,
-                        hasCompletion ? styles.dayBubbleHighlighted : undefined,
-                        isSelected ? styles.dayBubbleSelected : undefined,
-                        isToday ? styles.dayBubbleToday : undefined,
-                        pressed ? styles.dayBubblePressed : undefined,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.dayText,
-                          isSelected ? styles.dayTextSelected : undefined,
-                          hasCompletion ? styles.dayTextHighlighted : undefined,
-                        ]}
-                      >
-                        {cellDate.getDate()}
-                      </Text>
-                      {hasCompletion ? (
-                        <View style={[styles.dayDot, isSelected ? styles.dayDotSelected : undefined]} />
-                      ) : (
-                        <View style={styles.dayDotPlaceholder} />
-                      )}
-                    </View>
-                  )}
-                </Pressable>
-              );
-            })}
+          <Animated.View style={gridTrackStyle}>
+            {calendarPages.map((page) => (
+              <View key={page.key} style={gridPageStyle}>
+                {renderCalendarPage(page.cells, page.key)}
+              </View>
+            ))}
           </Animated.View>
         </View>
       </View>
@@ -413,7 +460,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8fafc',
   },
   calendar: {
-    paddingHorizontal: 16,
+    paddingHorizontal: CALENDAR_HORIZONTAL_PADDING,
     paddingTop: 10,
   },
   title: {
@@ -508,8 +555,12 @@ const styles = StyleSheet.create({
   },
   gridWrapper: {
     overflow: 'hidden',
+    width: '100%',
   },
-  grid: {
+  gridTrack: {
+    flexDirection: 'row',
+  },
+  gridPage: {
     flexDirection: 'row',
     flexWrap: 'wrap',
   },
