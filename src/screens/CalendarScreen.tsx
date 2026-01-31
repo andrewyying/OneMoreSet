@@ -1,8 +1,5 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
-  Animated,
-  Easing,
-  PanResponder,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -98,14 +95,11 @@ const CalendarScreen: React.FC = () => {
   const [today, setToday] = useState(() => startOfDay(new Date()));
   const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(today));
   const [selectedDate, setSelectedDate] = useState(() => today);
+  const gridScrollRef = useRef<ScrollView | null>(null);
   const gridWidth = useMemo(
     () => Math.max(1, width - CALENDAR_HORIZONTAL_PADDING * 2),
     [width],
   );
-  const baseOffset = useMemo(() => -gridWidth, [gridWidth]);
-  const translateX = useRef(new Animated.Value(baseOffset)).current;
-  const isAnimatingRef = useRef(false);
-  const pendingShiftRef = useRef(false);
 
   useEffect(() => {
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -129,22 +123,23 @@ const CalendarScreen: React.FC = () => {
     };
   }, []);
 
+  const scrollToCenter = useCallback(
+    (animated = false) => {
+      if (!gridScrollRef.current || gridWidth <= 0) {
+        return;
+      }
+      gridScrollRef.current.scrollTo({ x: gridWidth, animated });
+    },
+    [gridWidth],
+  );
+
   useEffect(() => {
-    translateX.stopAnimation();
-    translateX.setValue(baseOffset);
-    isAnimatingRef.current = false;
-    pendingShiftRef.current = false;
-  }, [baseOffset, translateX]);
+    scrollToCenter(false);
+  }, [scrollToCenter]);
 
   useLayoutEffect(() => {
-    if (!pendingShiftRef.current) {
-      return;
-    }
-
-    translateX.setValue(baseOffset);
-    pendingShiftRef.current = false;
-    isAnimatingRef.current = false;
-  }, [baseOffset, currentMonth, translateX]);
+    scrollToCenter(false);
+  }, [currentMonth, scrollToCenter]);
 
   const completionsByDay = useMemo(() => {
     const map = new Map<string, WorkoutCompletion[]>();
@@ -189,24 +184,17 @@ const CalendarScreen: React.FC = () => {
   }, []);
 
   const handleToday = useCallback(() => {
-    translateX.stopAnimation();
-    translateX.setValue(baseOffset);
-    isAnimatingRef.current = false;
-    pendingShiftRef.current = false;
     const next = startOfMonth(today);
     setCurrentMonth(next);
     setSelectedDate(today);
-  }, [baseOffset, today, translateX]);
+    scrollToCenter(false);
+  }, [scrollToCenter, today]);
 
   const handleSelectDate = useCallback((date: Date) => {
     setSelectedDate(startOfDay(date));
   }, []);
 
   const gridPageStyle = useMemo(() => [styles.gridPage, { width: gridWidth }], [gridWidth]);
-  const gridTrackStyle = useMemo(
-    () => [styles.gridTrack, { width: gridWidth * 3, transform: [{ translateX }] }],
-    [gridWidth, translateX],
-  );
 
   const renderCalendarPage = useCallback(
     (cells: CalendarCell[], keyPrefix: string) =>
@@ -257,87 +245,32 @@ const CalendarScreen: React.FC = () => {
     [completionsByDay, handleSelectDate, selectedKey, todayKey],
   );
 
-  const springBack = useCallback(() => {
-    Animated.spring(translateX, {
-      toValue: baseOffset,
-      damping: 18,
-      stiffness: 190,
-      mass: 0.7,
-      useNativeDriver: true,
-    }).start();
-  }, [baseOffset, translateX]);
+  const handleGridMomentumEnd = useCallback(
+    (offsetX: number) => {
+      if (!gridWidth) {
+        return;
+      }
+      const page = Math.round(offsetX / gridWidth);
+      if (page === 1) {
+        return;
+      }
+      const delta = page === 2 ? 1 : -1;
+      handleShiftMonth(delta);
+    },
+    [gridWidth, handleShiftMonth],
+  );
 
-  const animateMonthShift = useCallback(
+  const handleMonthNav = useCallback(
     (delta: number) => {
-      if (isAnimatingRef.current) {
+      if (!gridScrollRef.current || !gridWidth) {
+        handleShiftMonth(delta);
         return;
       }
 
-      isAnimatingRef.current = true;
-      const target = delta > 0 ? baseOffset - gridWidth : baseOffset + gridWidth;
-
-      Animated.timing(translateX, {
-        toValue: target,
-        duration: 240,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }).start(({ finished }) => {
-        if (!finished) {
-          isAnimatingRef.current = false;
-          springBack();
-          return;
-        }
-
-        pendingShiftRef.current = true;
-        handleShiftMonth(delta);
-      });
+      const targetPage = delta > 0 ? 2 : 0;
+      gridScrollRef.current.scrollTo({ x: targetPage * gridWidth, animated: true });
     },
-    [baseOffset, gridWidth, handleShiftMonth, springBack, translateX],
-  );
-
-  const swipeResponder = useMemo(
-    () =>
-      PanResponder.create({
-        onMoveShouldSetPanResponder: (_, gestureState) => {
-          if (isAnimatingRef.current) {
-            return false;
-          }
-          const { dx, dy } = gestureState;
-          return Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy);
-        },
-        onPanResponderMove: (_, gestureState) => {
-          if (isAnimatingRef.current) {
-            return;
-          }
-
-          const clampedDx = Math.max(-gridWidth, Math.min(gestureState.dx, gridWidth));
-          translateX.setValue(baseOffset + clampedDx);
-        },
-        onPanResponderRelease: (_, gestureState) => {
-          if (isAnimatingRef.current) {
-            return;
-          }
-
-          const { dx, dy, vx } = gestureState;
-          const isHorizontal = Math.abs(dx) > Math.abs(dy);
-          const distanceThreshold = Math.min(120, Math.max(48, gridWidth * 0.25));
-          const isSwipe = Math.abs(dx) > distanceThreshold || Math.abs(vx) > 0.45;
-
-          if (!isHorizontal || !isSwipe) {
-            springBack();
-            return;
-          }
-
-          animateMonthShift(dx < 0 ? 1 : -1);
-        },
-        onPanResponderTerminate: () => {
-          if (isAnimatingRef.current) {
-            return;
-          }
-          springBack();
-        },
-      }),
-    [animateMonthShift, baseOffset, gridWidth, springBack, translateX],
+    [gridWidth, handleShiftMonth],
   );
 
   if (status === 'loading') {
@@ -381,7 +314,7 @@ const CalendarScreen: React.FC = () => {
       <View style={styles.calendar}>
         <View style={styles.monthRow}>
           <Pressable
-            onPress={() => animateMonthShift(-1)}
+            onPress={() => handleMonthNav(-1)}
             style={({ pressed }) => [styles.navButton, pressed ? styles.navButtonPressed : undefined]}
           >
             <MaterialIcons name="chevron-left" size={24} color="#0f172a" />
@@ -391,7 +324,7 @@ const CalendarScreen: React.FC = () => {
             <Text style={styles.monthMeta}>{completedDaysThisMonth} workout days this month</Text>
           </View>
           <Pressable
-            onPress={() => animateMonthShift(1)}
+            onPress={() => handleMonthNav(1)}
             style={({ pressed }) => [styles.navButton, pressed ? styles.navButtonPressed : undefined]}
           >
             <MaterialIcons name="chevron-right" size={24} color="#0f172a" />
@@ -406,14 +339,24 @@ const CalendarScreen: React.FC = () => {
           ))}
         </View>
 
-        <View style={styles.gridWrapper} {...swipeResponder.panHandlers}>
-          <Animated.View style={gridTrackStyle}>
-            {calendarPages.map((page) => (
-              <View key={page.key} style={gridPageStyle}>
-                {renderCalendarPage(page.cells, page.key)}
-              </View>
-            ))}
-          </Animated.View>
+        <View style={styles.gridWrapper}>
+          <ScrollView
+            ref={gridScrollRef}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            bounces={false}
+            scrollEventThrottle={16}
+            onMomentumScrollEnd={(event) => handleGridMomentumEnd(event.nativeEvent.contentOffset.x)}
+          >
+            <View style={styles.gridTrack}>
+              {calendarPages.map((page) => (
+                <View key={page.key} style={gridPageStyle}>
+                  {renderCalendarPage(page.cells, page.key)}
+                </View>
+              ))}
+            </View>
+          </ScrollView>
         </View>
       </View>
       
