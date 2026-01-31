@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -41,12 +42,11 @@ const DAY_CELL_MARGIN_BOTTOM = 6;
 const DAY_BUBBLE_PADDING_VERTICAL = 8;
 const DAY_TEXT_FONT_SIZE = 14;
 const DAY_TEXT_LINE_HEIGHT = 16;
-const DAY_DOT_SIZE = 6;
-const DAY_DOT_MARGIN_TOP = 6;
-const DAY_BUBBLE_HEIGHT =
-  DAY_BUBBLE_PADDING_VERTICAL * 2 + DAY_TEXT_LINE_HEIGHT + DAY_DOT_MARGIN_TOP + DAY_DOT_SIZE;
+const DAY_BUBBLE_HEIGHT = DAY_BUBBLE_PADDING_VERTICAL * 2 + DAY_TEXT_LINE_HEIGHT;
 const DAY_CELL_HEIGHT = DAY_BUBBLE_HEIGHT + DAY_CELL_PADDING * 2;
 const ROW_HEIGHT = DAY_CELL_HEIGHT + DAY_CELL_MARGIN_BOTTOM;
+const CALENDAR_ROWS = 6;
+const CALENDAR_CELL_COUNT = CALENDAR_ROWS * 7;
 
 const pad2 = (value: number) => value.toString().padStart(2, '0');
 
@@ -92,6 +92,13 @@ const buildCalendarCells = (monthDate: Date): CalendarCell[] => {
     }
   }
 
+  const extraCount = CALENDAR_CELL_COUNT - cells.length;
+  if (extraCount > 0) {
+    for (let i = 0; i < extraCount; i += 1) {
+      cells.push({ date: null, key: `empty-${year}-${month}-extra-${i}` });
+    }
+  }
+
   return cells;
 };
 
@@ -100,8 +107,52 @@ const getCompletionCount = (list: WorkoutCompletion[]) => list.length;
 const getExerciseCount = (completion: WorkoutCompletion) =>
   completion.steps.reduce((sum, step) => sum + Math.max(1, step.repeatCount), 0);
 
+type CompletionCardProps = {
+  completion: WorkoutCompletion;
+  onDelete: (id: string) => void;
+};
+
+const CompletionCard: React.FC<CompletionCardProps> = React.memo(({ completion, onDelete }) => {
+  const confirmDelete = useCallback(() => {
+    Alert.alert('Delete workout?', 'Remove this workout from your history?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => onDelete(completion.id),
+      },
+    ]);
+  }, [completion.id, onDelete]);
+
+  const totalDuration = getTotalDuration({
+    steps: completion.steps,
+    restBetweenSec: completion.restBetweenSec,
+  });
+  const exerciseCount = getExerciseCount(completion);
+
+  return (
+    <Pressable
+      onLongPress={confirmDelete}
+      delayLongPress={450}
+      style={({ pressed }) => [styles.completionCard, pressed ? styles.completionCardPressed : undefined]}
+    >
+      <View style={styles.completionHeader}>
+        <Text style={styles.completionTitle} numberOfLines={1}>
+          {completion.scheduleName}
+        </Text>
+        <View style={styles.completionActions}>
+          <Text style={styles.completionTime}>{formatTimeLabel(completion.completedAt)}</Text>
+        </View>
+      </View>
+      <Text style={styles.completionMeta}>
+        {exerciseCount} exercises · {formatSeconds(totalDuration)}
+      </Text>
+    </Pressable>
+  );
+});
+
 const CalendarScreen: React.FC = () => {
-  const { completions, status, error } = useCompletions();
+  const { completions, status, error, deleteCompletion } = useCompletions();
   const { width } = useWindowDimensions();
   const [today, setToday] = useState(() => startOfDay(new Date()));
   const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(today));
@@ -170,8 +221,7 @@ const CalendarScreen: React.FC = () => {
   }, [completions]);
 
   const calendarCells = useMemo(() => buildCalendarCells(currentMonth), [currentMonth]);
-  const currentRowCount = useMemo(() => Math.max(1, calendarCells.length / 7), [calendarCells.length]);
-  const gridHeight = useMemo(() => currentRowCount * ROW_HEIGHT, [currentRowCount]);
+  const gridHeight = useMemo(() => CALENDAR_ROWS * ROW_HEIGHT, []);
   const prevMonth = useMemo(() => addMonths(currentMonth, -1), [currentMonth]);
   const nextMonth = useMemo(() => addMonths(currentMonth, 1), [currentMonth]);
   const prevCalendarCells = useMemo(() => buildCalendarCells(prevMonth), [prevMonth]);
@@ -206,6 +256,13 @@ const CalendarScreen: React.FC = () => {
   const handleSelectDate = useCallback((date: Date) => {
     setSelectedDate(startOfDay(date));
   }, []);
+
+  const handleDeleteCompletion = useCallback(
+    (id: string) => {
+      deleteCompletion(id);
+    },
+    [deleteCompletion],
+  );
 
   const gridPageStyle = useMemo(() => [styles.gridPage, { width: gridWidth }], [gridWidth]);
   const gridWrapperStyle = useMemo(() => [styles.gridWrapper, { height: gridHeight }], [gridHeight]);
@@ -246,11 +303,6 @@ const CalendarScreen: React.FC = () => {
                 >
                   {cellDate.getDate()}
                 </Text>
-                {hasCompletion ? (
-                  <View style={[styles.dayDot, isSelected ? styles.dayDotSelected : undefined]} />
-                ) : (
-                  <View style={styles.dayDotPlaceholder} />
-                )}
               </View>
             )}
           </Pressable>
@@ -374,39 +426,30 @@ const CalendarScreen: React.FC = () => {
         </View>
       </View>
       
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <View style={styles.detailSection}>
         <View style={styles.detailCard}>
           <Text style={styles.detailTitle}>{formatLongDate(selectedDate)}</Text>
           {selectedCompletions.length === 0 ? (
             <Text style={styles.detailEmpty}>No workouts logged for this day.</Text>
           ) : (
-            <Text style={styles.detailSubtitle}>
-              {getCompletionCount(selectedCompletions)} workout
-              {selectedCompletions.length === 1 ? '' : 's'}
-            </Text>
+            <>
+              <Text style={styles.detailSubtitle}>
+                {getCompletionCount(selectedCompletions)} workout
+                {selectedCompletions.length === 1 ? '' : 's'}
+              </Text>
+              <ScrollView
+                style={styles.completionList}
+                contentContainerStyle={styles.completionListContent}
+                showsVerticalScrollIndicator={false}
+              >
+                {selectedCompletions.map((completion) => (
+                  <CompletionCard key={completion.id} completion={completion} onDelete={handleDeleteCompletion} />
+                ))}
+              </ScrollView>
+            </>
           )}
-
-          {selectedCompletions.map((completion) => {
-            const totalDuration = getTotalDuration({
-              steps: completion.steps,
-              restBetweenSec: completion.restBetweenSec,
-            });
-            const exerciseCount = getExerciseCount(completion);
-
-            return (
-              <View key={completion.id} style={styles.completionCard}>
-                <View style={styles.completionHeader}>
-                  <Text style={styles.completionTitle}>{completion.scheduleName}</Text>
-                  <Text style={styles.completionTime}>{formatTimeLabel(completion.completedAt)}</Text>
-                </View>
-                <Text style={styles.completionMeta}>
-                  {exerciseCount} exercises · {formatSeconds(totalDuration)}
-                </Text>
-              </View>
-            );
-          })}
         </View>
-      </ScrollView>
+      </View>
     </SafeAreaView>
   );
 };
@@ -434,9 +477,11 @@ const styles = StyleSheet.create({
     color: '#64748b',
     textAlign: 'center',
   },
-  scrollContent: {
+  detailSection: {
+    flex: 1,
     padding: 16,
-    paddingBottom: 28,
+    paddingBottom: 0,
+    minHeight: 0,
   },
   header: {
     paddingHorizontal: 16,
@@ -563,27 +608,14 @@ const styles = StyleSheet.create({
   dayTextSelected: {
     color: '#fff',
   },
-  dayDot: {
-    width: DAY_DOT_SIZE,
-    height: DAY_DOT_SIZE,
-    borderRadius: DAY_DOT_SIZE / 2,
-    backgroundColor: '#0ea5e9',
-    marginTop: DAY_DOT_MARGIN_TOP,
-  },
-  dayDotSelected: {
-    backgroundColor: '#fff',
-  },
-  dayDotPlaceholder: {
-    width: DAY_DOT_SIZE,
-    height: DAY_DOT_SIZE,
-    marginTop: DAY_DOT_MARGIN_TOP,
-  },
   detailCard: {
     backgroundColor: '#fff',
     borderRadius: 16,
     borderWidth: 1,
     borderColor: '#e2e8f0',
     padding: 16,
+    flex: 1,
+    minHeight: 0,
   },
   detailTitle: {
     fontSize: 18,
@@ -598,17 +630,28 @@ const styles = StyleSheet.create({
     marginTop: 8,
     color: '#64748b',
   },
-  completionCard: {
+  completionList: {
     marginTop: 12,
+    flex: 1,
+    minHeight: 0,
+  },
+  completionListContent: {
+    paddingBottom: 4,
+  },
+  completionCard: {
     padding: 12,
     borderRadius: 14,
     borderWidth: 1,
     borderColor: '#e2e8f0',
     backgroundColor: '#f8fafc',
+    marginBottom: 15,
+  },
+  completionCardPressed: {
+    backgroundColor: '#eef2f7',
   },
   completionHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
   },
   completionTitle: {
@@ -617,6 +660,9 @@ const styles = StyleSheet.create({
     color: '#0f172a',
     flex: 1,
     marginRight: 10,
+  },
+  completionActions: {
+    alignItems: 'flex-end',
   },
   completionTime: {
     fontSize: 12,

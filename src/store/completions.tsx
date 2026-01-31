@@ -109,6 +109,7 @@ type ContextValue = {
   status: CompletionsStatus;
   error?: string;
   recordCompletion: (completion: Omit<WorkoutCompletion, 'id'>) => string | null;
+  deleteCompletion: (id: string) => void;
   reload: () => Promise<void>;
 };
 
@@ -190,6 +191,20 @@ export const CompletionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     [state.status],
   );
 
+  const deleteCompletion = useCallback(
+    (id: string) => {
+      if (state.status !== 'ready') {
+        return;
+      }
+
+      dispatch({
+        type: 'update',
+        updater: (current) => current.filter((completion) => completion.id !== id),
+      });
+    },
+    [state.status],
+  );
+
   const reload = useCallback(async () => {
     try {
       const next = await loadFromStorage();
@@ -206,9 +221,10 @@ export const CompletionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       status: state.status,
       error: state.error,
       recordCompletion,
+      deleteCompletion,
       reload,
     }),
-    [recordCompletion, reload, state.completions, state.error, state.status],
+    [deleteCompletion, recordCompletion, reload, state.completions, state.error, state.status],
   );
 
   return <CompletionContext.Provider value={value}>{children}</CompletionContext.Provider>;
