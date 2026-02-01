@@ -94,32 +94,48 @@ export const tickTimer = (state: TimerState, steps: TimerItem[], now: number): T
     return state;
   }
 
-  const durationMs = getStepDurationMs(steps, state.currentStepIndex);
-  const elapsed = Math.max(0, now - (state.stepStartedAt ?? now));
-  const remainingMs = Math.max(0, durationMs - elapsed);
-
-  if (remainingMs > 0) {
-    return { ...state, remainingMs };
-  }
-
-  const nextIndex = state.currentStepIndex + 1;
-  if (nextIndex >= steps.length) {
+  if (!steps.length) {
     return {
       status: 'finished',
-      currentStepIndex: state.currentStepIndex,
+      currentStepIndex: 0,
       remainingMs: 0,
       stepStartedAt: null,
       pausedRemainingMs: null,
     };
   }
 
-  const nextDuration = getStepDurationMs(steps, nextIndex);
+  const baseStartedAt = state.stepStartedAt ?? now;
+  let elapsed = Math.max(0, now - baseStartedAt);
+  let index = state.currentStepIndex;
+
+  while (index < steps.length) {
+    const durationMs = getStepDurationMs(steps, index);
+    if (durationMs <= 0) {
+      index += 1;
+      continue;
+    }
+
+    if (elapsed < durationMs) {
+      const remainingMs = durationMs - elapsed;
+      const stepStartedAt = now - elapsed;
+      return {
+        status: 'running',
+        currentStepIndex: index,
+        remainingMs,
+        stepStartedAt,
+        pausedRemainingMs: null,
+      };
+    }
+
+    elapsed -= durationMs;
+    index += 1;
+  }
 
   return {
-    status: 'running',
-    currentStepIndex: nextIndex,
-    remainingMs: nextDuration,
-    stepStartedAt: now,
+    status: 'finished',
+    currentStepIndex: Math.max(steps.length - 1, 0),
+    remainingMs: 0,
+    stepStartedAt: null,
     pausedRemainingMs: null,
   };
 };
