@@ -49,6 +49,9 @@ const LIVE_ACTIVITY_CONFIG: LiveActivity.LiveActivityConfig = {
   backgroundColor: '#0f172a',
   titleColor: '#f8fafc',
   subtitleColor: '#e2e8f0',
+  progressViewTint: '#0ea5e9',
+  progressViewLabelColor: '#f8fafc',
+  timerType: 'digital',
   imagePosition: 'left',
   imageAlign: 'center',
   imageSize: { width: 32, height: 32 },
@@ -89,6 +92,7 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
   const lastCountdownBeepRef = useRef<number | null>(null);
   const halfCueIndexRef = useRef<number | null>(null);
   const liveActivityIdRef = useRef<string | null>(null);
+  const liveActivityPinnedStateRef = useRef<TimerState | null>(null);
   const liveActivityResyncIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const liveActivityResyncAttemptsRef = useRef(0);
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
@@ -284,9 +288,23 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
       return null;
     }
 
+    const durationMs = current.durationSec * 1000;
+    if (durationMs <= 0) {
+      return null;
+    }
+    const stepStartedAt =
+      state.stepStartedAt ??
+      (state.status === 'running'
+        ? Date.now() - Math.max(0, durationMs - state.remainingMs)
+        : null);
+    const endDateMs = stepStartedAt ? stepStartedAt + durationMs : Date.now() + Math.max(0, state.remainingMs);
+
     return {
       title: activeSchedule.name,
       subtitle: current.label,
+      progressBar: {
+        date: endDateMs,
+      },
       imageName: LIVE_ACTIVITY_IMAGE_NAME,
       dynamicIslandImageName: LIVE_ACTIVITY_IMAGE_NAME,
     } satisfies LiveActivity.LiveActivityState;
@@ -297,7 +315,11 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
       return;
     }
 
-    const state = buildLiveActivityState(stateOverride ?? timerStateRef.current);
+    const sourceState =
+      appStateRef.current !== 'active' && liveActivityPinnedStateRef.current
+        ? liveActivityPinnedStateRef.current
+        : stateOverride ?? timerStateRef.current;
+    const state = buildLiveActivityState(sourceState);
     if (!state) {
       return;
     }
@@ -457,6 +479,7 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
       appStateRef.current = nextState;
 
       if (nextState === 'active') {
+        liveActivityPinnedStateRef.current = null;
         clearLiveActivityResync();
         const nextTimerState = tickTimer(timerStateRef.current, phasesRef.current, Date.now());
         setTimerState(nextTimerState);
@@ -470,7 +493,11 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
 
       const latestState = timerStateRef.current;
       if (latestState.status === 'running') {
+        liveActivityPinnedStateRef.current = latestState;
+        startLiveActivity(latestState);
         scheduleLiveActivityResync(latestState.currentStepIndex);
+      } else {
+        liveActivityPinnedStateRef.current = null;
       }
     };
 
@@ -483,13 +510,14 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
       if (soundsReady) {
         startBackgroundAudio();
       }
-      startLiveActivity(timerState);
-      scheduleLiveActivityResync(timerState.currentStepIndex);
+      if (appStateRef.current === 'active') {
+        startLiveActivity(timerState);
+      }
       return;
     }
 
     clearLiveActivityResync();
-    if (liveActivityIdRef.current) {
+    if (appStateRef.current === 'active' && liveActivityIdRef.current) {
       stopLiveActivity(timerState);
     }
     stopBackgroundAudio();
@@ -497,7 +525,6 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
     clearLiveActivityResync,
     startBackgroundAudio,
     startLiveActivity,
-    scheduleLiveActivityResync,
     stopBackgroundAudio,
     stopLiveActivity,
     soundsReady,
