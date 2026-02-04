@@ -10,6 +10,7 @@ import React, {
 
 import { generateId } from '../lib/ids';
 import { clampDuration } from '../lib/time';
+import { sanitizeStep } from '../lib/sanitization';
 import { Schedule, ScheduleDraft, ScheduleUpdate, Step } from '../types/models';
 import { loadSchedulesFromStorage, saveSchedulesToStorage } from './storage';
 
@@ -49,14 +50,6 @@ function schedulesReducer(state: State, action: Action): State {
       return state;
   }
 }
-
-const sanitizeStep = (step: Partial<Step>, index: number): Step => ({
-  id: typeof step.id === 'string' && step.id.trim() ? step.id : generateId('step'),
-  label: typeof step.label === 'string' && step.label.trim() ? step.label.trim() : `Step ${index + 1}`,
-  durationSec: clampDuration(typeof step.durationSec === 'number' ? step.durationSec : 1),
-  repeatCount: Math.max(1, Math.floor(typeof step.repeatCount === 'number' ? step.repeatCount : 1)),
-  color: typeof step.color === 'string' && step.color.trim() ? step.color : undefined,
-});
 
 const sanitizeSchedule = (
   schedule: Partial<ScheduleDraft & Schedule>,

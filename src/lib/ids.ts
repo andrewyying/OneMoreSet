@@ -1,5 +1,5 @@
 export const generateId = (prefix = 'id'): string => {
-  const cryptoRef = (globalThis as any).crypto;
+  const cryptoRef = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto;
   if (cryptoRef?.randomUUID) {
     return `${prefix}_${cryptoRef.randomUUID()}`;
   }

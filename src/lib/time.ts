@@ -47,3 +47,6 @@ export const buildPhases = (schedule: Pick<Schedule, 'steps' | 'restBetweenSec'>
 export const getTotalDuration = (schedule: Pick<Schedule, 'steps' | 'restBetweenSec'>) =>
   buildPhases(schedule).reduce((sum, phase) => sum + clampDuration(phase.durationSec), 0);
 
+export const getExerciseCount = (steps: Step[]): number =>
+  steps.reduce((sum, step) => sum + Math.max(1, step.repeatCount), 0);
+

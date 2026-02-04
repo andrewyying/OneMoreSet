@@ -5,8 +5,8 @@ import { Schedule, WorkoutCompletion } from '../types/models';
 export const STORAGE_KEY = '@workout_timer/schedules';
 export const COMPLETIONS_STORAGE_KEY = '@workout_timer/completions';
 
-export async function loadSchedulesFromStorage(): Promise<Schedule[] | null> {
-  const raw = await AsyncStorage.getItem(STORAGE_KEY);
+export async function loadFromStorage<T>(key: string): Promise<T[] | null> {
+  const raw = await AsyncStorage.getItem(key);
 
   if (!raw) {
     return null;
@@ -19,49 +19,35 @@ export async function loadSchedulesFromStorage(): Promise<Schedule[] | null> {
       return null;
     }
 
-    return parsed as Schedule[];
+    return parsed as T[];
   } catch (error) {
-    console.warn('Failed to parse schedules from storage', error);
+    console.warn('Failed to parse storage data', error);
     throw error;
   }
+}
+
+export async function saveToStorage<T>(key: string, value: T[]): Promise<void> {
+  try {
+    await AsyncStorage.setItem(key, JSON.stringify(value));
+  } catch (error) {
+    console.warn('Failed to save storage data', error);
+    throw error;
+  }
+}
+
+export async function loadSchedulesFromStorage(): Promise<Schedule[] | null> {
+  return loadFromStorage<Schedule>(STORAGE_KEY);
 }
 
 export async function saveSchedulesToStorage(schedules: Schedule[]): Promise<void> {
-  try {
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(schedules));
-  } catch (error) {
-    console.warn('Failed to save schedules', error);
-    throw error;
-  }
+  return saveToStorage(STORAGE_KEY, schedules);
 }
 
 export async function loadCompletionsFromStorage(): Promise<WorkoutCompletion[] | null> {
-  const raw = await AsyncStorage.getItem(COMPLETIONS_STORAGE_KEY);
-
-  if (!raw) {
-    return null;
-  }
-
-  try {
-    const parsed = JSON.parse(raw);
-
-    if (!Array.isArray(parsed)) {
-      return null;
-    }
-
-    return parsed as WorkoutCompletion[];
-  } catch (error) {
-    console.warn('Failed to parse completions from storage', error);
-    throw error;
-  }
+  return loadFromStorage<WorkoutCompletion>(COMPLETIONS_STORAGE_KEY);
 }
 
 export async function saveCompletionsToStorage(completions: WorkoutCompletion[]): Promise<void> {
-  try {
-    await AsyncStorage.setItem(COMPLETIONS_STORAGE_KEY, JSON.stringify(completions));
-  } catch (error) {
-    console.warn('Failed to save completions', error);
-    throw error;
-  }
+  return saveToStorage(COMPLETIONS_STORAGE_KEY, completions);
 }
 

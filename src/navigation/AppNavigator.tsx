@@ -32,8 +32,9 @@ const MainTabs: React.FC = () => (
       tabBarInactiveTintColor: '#94a3b8',
       tabBarLabelStyle: { fontWeight: '700' },
       tabBarIcon: ({ color, size }) => {
-        const icon = route.name === 'ScheduleList' ? 'list' : 'calendar-today';
-        return <MaterialIcons name={icon as any} size={size} color={color} />;
+        const icon: React.ComponentProps<typeof MaterialIcons>['name'] =
+          route.name === 'ScheduleList' ? 'list' : 'calendar-today';
+        return <MaterialIcons name={icon} size={size} color={color} />;
       },
     })}
   >
