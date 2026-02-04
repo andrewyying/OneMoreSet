@@ -1,6 +1,7 @@
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import {
-  Alert,
+  FlatList,
+  ListRenderItem,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -11,29 +12,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 
-import { formatSeconds, getTotalDuration } from '../lib/time';
+import CompletionCard from '../components/CompletionCard';
+import { CALENDAR_ROWS, CalendarCell } from '../lib/calendar';
+import { formatLongDate, formatMonthLabel, startOfMonth, toDateKey } from '../lib/date';
+import { useCalendar } from '../hooks/useCalendar';
 import { useCompletions } from '../store/completions';
 import { WorkoutCompletion } from '../types/models';
-
-type CalendarCell = {
-  date: Date | null;
-  key: string;
-};
-
-const MONTH_LABELS = [
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-  'July',
-  'August',
-  'September',
-  'October',
-  'November',
-  'December',
-];
 
 const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const CALENDAR_HORIZONTAL_PADDING = 16;
@@ -45,145 +29,32 @@ const DAY_TEXT_LINE_HEIGHT = 16;
 const DAY_BUBBLE_HEIGHT = DAY_BUBBLE_PADDING_VERTICAL * 2 + DAY_TEXT_LINE_HEIGHT;
 const DAY_CELL_HEIGHT = DAY_BUBBLE_HEIGHT + DAY_CELL_PADDING * 2;
 const ROW_HEIGHT = DAY_CELL_HEIGHT + DAY_CELL_MARGIN_BOTTOM;
-const CALENDAR_ROWS = 6;
-const CALENDAR_CELL_COUNT = CALENDAR_ROWS * 7;
-
-const pad2 = (value: number) => value.toString().padStart(2, '0');
-
-const toDateKey = (date: Date) =>
-  `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
-
-const startOfDay = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
-
-const startOfMonth = (date: Date) => new Date(date.getFullYear(), date.getMonth(), 1);
-
-const addMonths = (date: Date, delta: number) => new Date(date.getFullYear(), date.getMonth() + delta, 1);
-
-const formatMonthLabel = (date: Date) => `${MONTH_LABELS[date.getMonth()]} ${date.getFullYear()}`;
-
-const formatLongDate = (date: Date) =>
-  `${MONTH_LABELS[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
-
-const formatTimeLabel = (value: number) =>
-  new Date(value).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-
-const buildCalendarCells = (monthDate: Date): CalendarCell[] => {
-  const year = monthDate.getFullYear();
-  const month = monthDate.getMonth();
-  const firstOfMonth = new Date(year, month, 1);
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const startWeekday = firstOfMonth.getDay();
-  const cells: CalendarCell[] = [];
-
-  for (let i = 0; i < startWeekday; i += 1) {
-    cells.push({ date: null, key: `empty-${year}-${month}-${i}` });
-  }
-
-  for (let day = 1; day <= daysInMonth; day += 1) {
-    const date = new Date(year, month, day);
-    cells.push({ date, key: toDateKey(date) });
-  }
-
-  const remainder = cells.length % 7;
-  if (remainder !== 0) {
-    const fillerCount = 7 - remainder;
-    for (let i = 0; i < fillerCount; i += 1) {
-      cells.push({ date: null, key: `empty-${year}-${month}-tail-${i}` });
-    }
-  }
-
-  const extraCount = CALENDAR_CELL_COUNT - cells.length;
-  if (extraCount > 0) {
-    for (let i = 0; i < extraCount; i += 1) {
-      cells.push({ date: null, key: `empty-${year}-${month}-extra-${i}` });
-    }
-  }
-
-  return cells;
-};
 
 const getCompletionCount = (list: WorkoutCompletion[]) => list.length;
-
-const getExerciseCount = (completion: WorkoutCompletion) =>
-  completion.steps.reduce((sum, step) => sum + Math.max(1, step.repeatCount), 0);
-
-type CompletionCardProps = {
-  completion: WorkoutCompletion;
-  onDelete: (id: string) => void;
-};
-
-const CompletionCard: React.FC<CompletionCardProps> = React.memo(({ completion, onDelete }) => {
-  const confirmDelete = useCallback(() => {
-    Alert.alert('Delete workout?', 'Remove this workout from your history?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => onDelete(completion.id),
-      },
-    ]);
-  }, [completion.id, onDelete]);
-
-  const totalDuration = getTotalDuration({
-    steps: completion.steps,
-    restBetweenSec: completion.restBetweenSec,
-  });
-  const exerciseCount = getExerciseCount(completion);
-
-  return (
-    <Pressable
-      onLongPress={confirmDelete}
-      delayLongPress={450}
-      style={({ pressed }) => [styles.completionCard, pressed ? styles.completionCardPressed : undefined]}
-    >
-      <View style={styles.completionHeader}>
-        <Text style={styles.completionTitle} numberOfLines={1}>
-          {completion.scheduleName}
-        </Text>
-        <View style={styles.completionActions}>
-          <Text style={styles.completionTime}>{formatTimeLabel(completion.completedAt)}</Text>
-        </View>
-      </View>
-      <Text style={styles.completionMeta}>
-        {exerciseCount} exercises · {formatSeconds(totalDuration)}
-      </Text>
-    </Pressable>
-  );
-});
 
 const CalendarScreen: React.FC = () => {
   const { completions, status, error, deleteCompletion } = useCompletions();
   const { width } = useWindowDimensions();
-  const [today, setToday] = useState(() => startOfDay(new Date()));
-  const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(today));
-  const [selectedDate, setSelectedDate] = useState(() => today);
+  const {
+    today,
+    currentMonth,
+    selectedDate,
+    selectedKey,
+    todayKey,
+    calendarPages,
+    selectedCompletions,
+    completedDaysThisMonth,
+    completionsByDay,
+    setCurrentMonth,
+    setSelectedDate,
+    handleShiftMonth,
+    handleSelectDate,
+  } = useCalendar(completions);
   const gridScrollRef = useRef<ScrollView | null>(null);
   const gridWidth = useMemo(
     () => Math.max(1, width - CALENDAR_HORIZONTAL_PADDING * 2),
     [width],
   );
-
-  useEffect(() => {
-    let timeoutId: ReturnType<typeof setTimeout> | null = null;
-
-    const scheduleNextMidnight = () => {
-      const now = new Date();
-      const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-      const msUntilMidnight = Math.max(0, nextMidnight.getTime() - now.getTime() + 1000);
-      timeoutId = setTimeout(() => {
-        setToday(startOfDay(new Date()));
-        scheduleNextMidnight();
-      }, msUntilMidnight);
-    };
-
-    scheduleNextMidnight();
-
-    return () => {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-    };
-  }, []);
 
   const scrollToCenter = useCallback(
     (animated = false) => {
@@ -203,59 +74,14 @@ const CalendarScreen: React.FC = () => {
     scrollToCenter(false);
   }, [currentMonth, scrollToCenter]);
 
-  const completionsByDay = useMemo(() => {
-    const map = new Map<string, WorkoutCompletion[]>();
-    completions.forEach((completion) => {
-      const key = toDateKey(new Date(completion.completedAt));
-      const existing = map.get(key);
-      if (existing) {
-        existing.push(completion);
-      } else {
-        map.set(key, [completion]);
-      }
-    });
-    map.forEach((items) => {
-      items.sort((a, b) => b.completedAt - a.completedAt);
-    });
-    return map;
-  }, [completions]);
-
-  const calendarCells = useMemo(() => buildCalendarCells(currentMonth), [currentMonth]);
   const gridHeight = useMemo(() => CALENDAR_ROWS * ROW_HEIGHT, []);
-  const prevMonth = useMemo(() => addMonths(currentMonth, -1), [currentMonth]);
-  const nextMonth = useMemo(() => addMonths(currentMonth, 1), [currentMonth]);
-  const prevCalendarCells = useMemo(() => buildCalendarCells(prevMonth), [prevMonth]);
-  const nextCalendarCells = useMemo(() => buildCalendarCells(nextMonth), [nextMonth]);
-  const selectedKey = useMemo(() => toDateKey(selectedDate), [selectedDate]);
-  const todayKey = useMemo(() => toDateKey(today), [today]);
-  const calendarPages = useMemo(
-    () => [
-      { key: 'prev', cells: prevCalendarCells },
-      { key: 'current', cells: calendarCells },
-      { key: 'next', cells: nextCalendarCells },
-    ],
-    [calendarCells, nextCalendarCells, prevCalendarCells],
-  );
-  const selectedCompletions = completionsByDay.get(selectedKey) ?? [];
-  const completedDaysThisMonth = useMemo(() => {
-    const monthPrefix = `${currentMonth.getFullYear()}-${pad2(currentMonth.getMonth() + 1)}-`;
-    return Array.from(completionsByDay.keys()).filter((key) => key.startsWith(monthPrefix)).length;
-  }, [completionsByDay, currentMonth]);
-
-  const handleShiftMonth = useCallback((delta: number) => {
-    setCurrentMonth((prev) => addMonths(prev, delta));
-  }, []);
 
   const handleToday = useCallback(() => {
     const next = startOfMonth(today);
     setCurrentMonth(next);
     setSelectedDate(today);
     scrollToCenter(false);
-  }, [scrollToCenter, today]);
-
-  const handleSelectDate = useCallback((date: Date) => {
-    setSelectedDate(startOfDay(date));
-  }, []);
+  }, [scrollToCenter, setCurrentMonth, setSelectedDate, today]);
 
   const handleDeleteCompletion = useCallback(
     (id: string) => {
@@ -266,6 +92,10 @@ const CalendarScreen: React.FC = () => {
 
   const gridPageStyle = useMemo(() => [styles.gridPage, { width: gridWidth }], [gridWidth]);
   const gridWrapperStyle = useMemo(() => [styles.gridWrapper, { height: gridHeight }], [gridHeight]);
+  const renderCompletionItem = useCallback<ListRenderItem<WorkoutCompletion>>(
+    ({ item }) => <CompletionCard completion={item} onDelete={handleDeleteCompletion} />,
+    [handleDeleteCompletion],
+  );
 
   const renderCalendarPage = useCallback(
     (cells: CalendarCell[], keyPrefix: string) =>
@@ -437,15 +267,14 @@ const CalendarScreen: React.FC = () => {
                 {getCompletionCount(selectedCompletions)} workout
                 {selectedCompletions.length === 1 ? '' : 's'}
               </Text>
-              <ScrollView
+              <FlatList
+                data={selectedCompletions}
+                keyExtractor={(item) => item.id}
+                renderItem={renderCompletionItem}
                 style={styles.completionList}
                 contentContainerStyle={styles.completionListContent}
                 showsVerticalScrollIndicator={false}
-              >
-                {selectedCompletions.map((completion) => (
-                  <CompletionCard key={completion.id} completion={completion} onDelete={handleDeleteCompletion} />
-                ))}
-              </ScrollView>
+              />
             </>
           )}
         </View>
@@ -637,56 +466,6 @@ const styles = StyleSheet.create({
   },
   completionListContent: {
     paddingBottom: 4,
-  },
-  completionCard: {
-    padding: 12,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    backgroundColor: '#f8fafc',
-    marginBottom: 15,
-  },
-  completionCardPressed: {
-    backgroundColor: '#eef2f7',
-  },
-  completionHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-  },
-  completionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#0f172a',
-    flex: 1,
-    marginRight: 10,
-  },
-  completionActions: {
-    alignItems: 'flex-end',
-  },
-  completionTime: {
-    fontSize: 12,
-    color: '#64748b',
-  },
-  completionMeta: {
-    marginTop: 6,
-    fontSize: 13,
-    color: '#475569',
-  },
-  stepRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 6,
-  },
-  stepLabel: {
-    flex: 1,
-    fontSize: 13,
-    color: '#0f172a',
-    marginRight: 8,
-  },
-  stepMeta: {
-    fontSize: 12,
-    color: '#64748b',
   },
   emptyState: {
     flex: 1,
