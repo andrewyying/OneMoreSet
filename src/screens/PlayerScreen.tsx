@@ -40,7 +40,7 @@ import { RootStackParamList } from '../types/navigation';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Player'>;
 
-const COUNTDOWN_CUE_WINDOW_MS = 900;
+const COUNTDOWN_CUE_SECONDS = 3;
 const HALF_CUE_WINDOW_MS = 2000;
 
 const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
@@ -69,6 +69,7 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
   const lastStepIndexRef = useRef(timerState.currentStepIndex);
   const lastStatusRef = useRef<TimerStatus>(timerState.status);
   const lastCountdownBeepRef = useRef<number | null>(null);
+  const countdownTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const halfCueIndexRef = useRef<number | null>(null);
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
   const timerStateRef = useRef(timerState);
@@ -116,6 +117,35 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
       console.warn('Haptics failed', error);
     }
   }, []);
+
+  const clearCountdownTimeouts = useCallback(() => {
+    countdownTimeoutsRef.current.forEach((timeout) => clearTimeout(timeout));
+    countdownTimeoutsRef.current = [];
+  }, []);
+
+  const scheduleCountdownCue = useCallback(
+    (delayMs: number, stepIndex: number, cueSecond: number) => {
+      if (delayMs <= 0) {
+        return;
+      }
+
+      const timeoutId = setTimeout(() => {
+        const latestState = timerStateRef.current;
+        if (latestState.status !== 'running' || latestState.currentStepIndex !== stepIndex) {
+          return;
+        }
+        if (lastCountdownBeepRef.current === cueSecond) {
+          return;
+        }
+
+        playBeepSound();
+        lastCountdownBeepRef.current = cueSecond;
+      }, delayMs);
+
+      countdownTimeoutsRef.current.push(timeoutId);
+    },
+    [playBeepSound],
+  );
 
   useEffect(() => {
     setTimerState(createInitialTimerState(phases));
@@ -227,37 +257,55 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
   }, [recordCompletion, schedule, timerState.status]);
 
   useEffect(() => {
+    clearCountdownTimeouts();
     if (timerState.status !== 'running') {
       lastCountdownBeepRef.current = null;
-      return;
+      return undefined;
     }
     const current = phases[timerState.currentStepIndex];
     if (!current) {
-      return;
+      return undefined;
     }
 
     const durationMs = current.durationSec * 1000;
     if (durationMs <= 0 || !timerState.stepStartedAt) {
-      return;
+      return undefined;
     }
 
-    const endDateMs = timerState.stepStartedAt + durationMs;
     const now = Date.now();
-    const cueSeconds = [1, 2, 3];
-    const cueToPlay = cueSeconds.find((seconds) => {
-      if (lastCountdownBeepRef.current === seconds) {
-        return false;
-      }
-      const cueTime = endDateMs - seconds * 1000;
-      const diff = now - cueTime;
-      return diff >= 0 && diff <= COUNTDOWN_CUE_WINDOW_MS;
-    });
-
-    if (cueToPlay) {
-      playBeepSound();
-      lastCountdownBeepRef.current = cueToPlay;
+    const endDateMs = timerState.stepStartedAt + durationMs;
+    const remainingMs = endDateMs - now;
+    if (remainingMs <= 0) {
+      return undefined;
     }
-  }, [phases, playBeepSound, timerState.currentStepIndex, timerState.remainingMs, timerState.status, timerState.stepStartedAt]);
+
+    const remainingSec = Math.max(0, Math.ceil(remainingMs / 1000));
+    if (remainingSec >= 1 && remainingSec <= COUNTDOWN_CUE_SECONDS) {
+      if (lastCountdownBeepRef.current !== remainingSec) {
+        playBeepSound();
+        lastCountdownBeepRef.current = remainingSec;
+      }
+    }
+
+    const startSecond = Math.min(COUNTDOWN_CUE_SECONDS, remainingSec - 1);
+    for (let second = startSecond; second >= 1; second -= 1) {
+      const cueTime = endDateMs - second * 1000;
+      const delayMs = cueTime - now;
+      scheduleCountdownCue(delayMs, timerState.currentStepIndex, second);
+    }
+
+    return () => {
+      clearCountdownTimeouts();
+    };
+  }, [
+    clearCountdownTimeouts,
+    phases,
+    playBeepSound,
+    scheduleCountdownCue,
+    timerState.currentStepIndex,
+    timerState.status,
+    timerState.stepStartedAt,
+  ]);
 
   useEffect(() => {
     if (timerState.status !== 'running') {
