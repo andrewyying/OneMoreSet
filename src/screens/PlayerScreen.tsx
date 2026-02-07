@@ -1,8 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
+  Animated,
   AppState,
   AppStateStatus,
+  Easing,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -11,12 +13,14 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { MaterialIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 
 import ExerciseModal from '../components/ExerciseModal';
 import PrimaryButton from '../components/PrimaryButton';
 import TimerCircle from '../components/TimerCircle';
 import TimerControls from '../components/TimerControls';
+import { startOfDay, toDateKey } from '../lib/date';
 import { buildPhases, Phase } from '../lib/time';
 import {
   createInitialTimerState,
@@ -42,11 +46,24 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Player'>;
 
 const COUNTDOWN_CUE_SECONDS = 3;
 const HALF_CUE_WINDOW_MS = 2000;
+const TIMER_TICK_INTERVAL_MS = 33;
+const CONTINUE_BUTTON_DELAY_MS = 1800;
+const STREAK_COUNT_DURATION_MS = 900;
+const CELEBRATION_MESSAGES = [
+  'Congratulations!',
+  "You've done it!",
+  'Hooray!',
+  'Great work!',
+  'Workout complete!',
+  'Nice finish!',
+  'You crushed it!',
+  'Strong finish!',
+];
 
 const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
   const { scheduleId, startWithCountdown = false } = route.params;
   const { schedules } = useSchedules();
-  const { recordCompletion } = useCompletions();
+  const { completions, recordCompletion } = useCompletions();
   const schedule = schedules.find((item) => item.id === scheduleId);
   const phases = useMemo<Phase[]>(() => {
     if (!schedule) {
@@ -76,7 +93,21 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
   const phasesRef = useRef(phases);
   const scheduleRef = useRef(schedule);
   const [showExercises, setShowExercises] = useState(false);
+  const [celebrationMessage, setCelebrationMessage] = useState(CELEBRATION_MESSAGES[0]);
+  const [displayStreakDays, setDisplayStreakDays] = useState(0);
+  const [showContinueButton, setShowContinueButton] = useState(false);
   const completionRecordedRef = useRef(false);
+  const finishContentOpacity = useRef(new Animated.Value(0)).current;
+  const finishContentTranslateY = useRef(new Animated.Value(16)).current;
+  const continueButtonOpacity = useRef(new Animated.Value(0)).current;
+  const continueButtonTranslateY = useRef(new Animated.Value(12)).current;
+  const finishBadgeScale = useRef(new Animated.Value(0.88)).current;
+  const finishHaloScale = useRef(new Animated.Value(0.8)).current;
+  const finishHaloOpacity = useRef(new Animated.Value(0)).current;
+  const streakCountValue = useRef(new Animated.Value(0)).current;
+  const streakCountListenerRef = useRef<string | null>(null);
+  const continueButtonTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const finishAnimationStartedRef = useRef(false);
 
   const {
     soundsReady,
@@ -170,7 +201,7 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
 
     const interval = setInterval(() => {
       setTimerState((prev) => tickTimer(prev, phasesRef.current, Date.now()));
-    }, 200);
+    }, TIMER_TICK_INTERVAL_MS);
 
     return () => clearInterval(interval);
   }, [timerState.status]);
@@ -358,6 +389,34 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
       progressPercent,
     };
   }, [phases, timerState.currentStepIndex, timerState.remainingMs]);
+  const currentTitleStep = useMemo(() => {
+    if (!schedule) {
+      return { title: currentStep?.label ?? 'No exercises', repeatProgress: null as string | null };
+    }
+
+    const titlePhases: { title: string; repeatProgress: string | null }[] = [];
+    const restBetweenSec = Math.max(0, Math.floor(schedule.restBetweenSec ?? 0));
+
+    schedule.steps.forEach((step, stepIndex) => {
+      const repeats = Math.max(1, Math.floor(step.repeatCount ?? 1));
+      for (let rep = 0; rep < repeats; rep += 1) {
+        titlePhases.push({
+          title: step.label,
+          repeatProgress: repeats > 1 ? `${rep + 1}/${repeats}` : null,
+        });
+
+        const isLastOverall = rep === repeats - 1 && stepIndex === schedule.steps.length - 1;
+        if (restBetweenSec > 0 && !isLastOverall) {
+          titlePhases.push({ title: 'Rest', repeatProgress: null });
+        }
+      }
+    });
+
+    return titlePhases[timerState.currentStepIndex] ?? {
+      title: currentStep?.label ?? 'No exercises',
+      repeatProgress: null,
+    };
+  }, [currentStep?.label, schedule, timerState.currentStepIndex]);
 
   const handlePrimaryControl = useCallback(() => {
     const now = Date.now();
@@ -417,18 +476,30 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
   const handleOpenExercises = useCallback(() => setShowExercises(true), []);
   const handleCloseExercises = useCallback(() => setShowExercises(false), []);
 
-  if (!schedule) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <Text style={styles.title}>Schedule not found</Text>
-        <PrimaryButton label="Back to list" onPress={() => navigation.goBack()} style={styles.backButton} />
-      </SafeAreaView>
-    );
-  }
-
   const isRunning = timerState.status === 'running';
   const isPaused = timerState.status === 'paused';
   const isFinished = timerState.status === 'finished';
+  const currentStreakDays = useMemo(() => {
+    const completedDayKeys = new Set(completions.map((item) => toDateKey(new Date(item.completedAt))));
+
+    // Keep streak accurate immediately after finish, even before persistence settles.
+    if (isFinished) {
+      completedDayKeys.add(toDateKey(new Date()));
+    }
+
+    let streakDays = 0;
+    const cursor = startOfDay(new Date());
+
+    while (completedDayKeys.has(toDateKey(cursor))) {
+      streakDays += 1;
+      cursor.setDate(cursor.getDate() - 1);
+    }
+
+    return streakDays;
+  }, [completions, isFinished]);
+  const handleContinue = useCallback(() => {
+    navigation.navigate('MainTabs', { screen: 'Calendar' });
+  }, [navigation]);
   const primaryLabel = useMemo(() => (isRunning ? 'Pause' : isPaused ? 'Resume' : 'Start'), [isPaused, isRunning]);
   const radius = useMemo(() => Math.min(width * 0.35, 140), [width]);
   const strokeWidth = 12;
@@ -442,6 +513,156 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
   const disablePrimary = !hasPhases;
   const disableNext = !hasPhases;
 
+  useEffect(() => {
+    const clearContinueButtonTimeout = () => {
+      if (continueButtonTimeoutRef.current) {
+        clearTimeout(continueButtonTimeoutRef.current);
+        continueButtonTimeoutRef.current = null;
+      }
+    };
+    const clearStreakCountListener = () => {
+      if (streakCountListenerRef.current) {
+        streakCountValue.removeListener(streakCountListenerRef.current);
+        streakCountListenerRef.current = null;
+      }
+    };
+
+    if (!isFinished) {
+      finishAnimationStartedRef.current = false;
+      clearContinueButtonTimeout();
+      clearStreakCountListener();
+      setShowContinueButton(false);
+      setDisplayStreakDays(0);
+      finishContentOpacity.setValue(0);
+      finishContentTranslateY.setValue(16);
+      continueButtonOpacity.setValue(0);
+      continueButtonTranslateY.setValue(12);
+      finishBadgeScale.setValue(0.88);
+      finishHaloScale.setValue(0.8);
+      finishHaloOpacity.setValue(0);
+      streakCountValue.setValue(0);
+      return;
+    }
+
+    if (finishAnimationStartedRef.current) {
+      return;
+    }
+
+    finishAnimationStartedRef.current = true;
+    clearContinueButtonTimeout();
+    clearStreakCountListener();
+    setCelebrationMessage(CELEBRATION_MESSAGES[Math.floor(Math.random() * CELEBRATION_MESSAGES.length)]);
+    setShowContinueButton(false);
+    setDisplayStreakDays(0);
+    finishContentOpacity.setValue(0);
+    finishContentTranslateY.setValue(16);
+    continueButtonOpacity.setValue(0);
+    continueButtonTranslateY.setValue(12);
+    finishBadgeScale.setValue(0.88);
+    finishHaloScale.setValue(0.8);
+    finishHaloOpacity.setValue(0);
+    streakCountValue.setValue(0);
+
+    Animated.parallel([
+      Animated.timing(finishContentOpacity, {
+        toValue: 1,
+        duration: 380,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(finishContentTranslateY, {
+        toValue: 0,
+        duration: 380,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.spring(finishBadgeScale, {
+        toValue: 1,
+        speed: 16,
+        bounciness: 8,
+        useNativeDriver: true,
+      }),
+      Animated.sequence([
+        Animated.timing(finishHaloOpacity, {
+          toValue: 0.35,
+          duration: 100,
+          useNativeDriver: true,
+        }),
+        Animated.parallel([
+          Animated.timing(finishHaloScale, {
+            toValue: 1.75,
+            duration: 700,
+            easing: Easing.out(Easing.cubic),
+            useNativeDriver: true,
+          }),
+          Animated.timing(finishHaloOpacity, {
+            toValue: 0,
+            duration: 700,
+            easing: Easing.out(Easing.cubic),
+            useNativeDriver: true,
+          }),
+        ]),
+      ]),
+    ], { stopTogether: false }).start();
+
+    streakCountListenerRef.current = streakCountValue.addListener(({ value }) => {
+      setDisplayStreakDays(Math.max(0, Math.round(value)));
+    });
+    Animated.timing(streakCountValue, {
+      toValue: currentStreakDays,
+      duration: STREAK_COUNT_DURATION_MS,
+      easing: Easing.out(Easing.quad),
+      useNativeDriver: false,
+    }).start(() => {
+      setDisplayStreakDays(currentStreakDays);
+      clearStreakCountListener();
+    });
+
+    continueButtonTimeoutRef.current = setTimeout(() => {
+      setShowContinueButton(true);
+      Animated.parallel([
+        Animated.timing(continueButtonOpacity, {
+          toValue: 1,
+          duration: 380,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(continueButtonTranslateY, {
+          toValue: 0,
+          duration: 380,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }, CONTINUE_BUTTON_DELAY_MS);
+
+    return () => {
+      clearContinueButtonTimeout();
+      clearStreakCountListener();
+    };
+  }, [
+    continueButtonOpacity,
+    continueButtonTranslateY,
+    finishBadgeScale,
+    finishContentOpacity,
+    finishContentTranslateY,
+    finishAnimationStartedRef,
+    finishHaloOpacity,
+    finishHaloScale,
+    currentStreakDays,
+    isFinished,
+    streakCountValue,
+  ]);
+
+  if (!schedule) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <Text style={styles.title}>Schedule not found</Text>
+        <PrimaryButton label="Back to list" onPress={() => navigation.goBack()} style={styles.backButton} />
+      </SafeAreaView>
+    );
+  }
+
   if (preStartCountdown !== null) {
     return (
       <SafeAreaView style={styles.countdownContainer}>
@@ -449,12 +670,62 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
       </SafeAreaView>
     );
   }
+  if (isFinished) {
+    return (
+      <SafeAreaView style={styles.finishedContainer}>
+        <View style={styles.finishedHero}>
+          <Animated.View
+            style={[
+              styles.finishedHalo,
+              {
+                opacity: finishHaloOpacity,
+                transform: [{ scale: finishHaloScale }],
+              },
+            ]}
+          />
+          <Animated.View style={[styles.finishedBadge, { transform: [{ scale: finishBadgeScale }] }]}>
+            <MaterialIcons name="check" size={46} color="#0f172a" />
+          </Animated.View>
+          <Animated.View
+            style={[
+              styles.finishedContent,
+              {
+                opacity: finishContentOpacity,
+                transform: [{ translateY: finishContentTranslateY }],
+              },
+            ]}
+          >
+            <Text style={styles.finishedTitle}>{celebrationMessage}</Text>
+            <Text style={styles.finishedStreakLabel}>Current streak</Text>
+            <Text style={styles.finishedStreakValue}>
+              {displayStreakDays} day{displayStreakDays === 1 ? '' : 's'}
+            </Text>
+          </Animated.View>
+        </View>
+        {showContinueButton ? (
+          <Animated.View
+            style={{
+              opacity: continueButtonOpacity,
+              transform: [{ translateY: continueButtonTranslateY }],
+            }}
+          >
+            <PrimaryButton label="Continue" variant="secondary" onPress={handleContinue} style={styles.finishedButton} />
+          </Animated.View>
+        ) : (
+          <View style={styles.finishedButtonPlaceholder} />
+        )}
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        <Text style={styles.scheduleName}>{schedule.name}</Text>
-        <Text style={styles.currentLabel}>{currentStep?.label ?? 'No exercises'}</Text>
+        <Text style={styles.currentLabel}>{currentTitleStep.title}</Text>
+        {currentTitleStep.repeatProgress ? (
+          <Text style={styles.currentProgress}>{currentTitleStep.repeatProgress}</Text>
+        ) : <Text style={styles.currentProgress}>{' '}</Text>
+        }
 
         <TimerCircle
           radius={radius}
@@ -468,11 +739,9 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
 
         <TouchableOpacity style={styles.nextRow} onPress={handleOpenExercises} activeOpacity={0.8}>
           <Text style={styles.previewLabel}>Next</Text>
-          {isFinished ? (
-            <Text style={styles.previewTitle}>Congratulations! You finished the workout</Text>
-          ) : upcomingStep ? (
+          {upcomingStep ? (
             <>
-              <Text style={styles.previewTitle}>{upcomingStep.label}</Text>
+              <Text style={styles.previewTitle}>{upcomingStep.label.replace(/\s\(x\d+\)$/, '')}</Text>
             </>
           ) : (
             <Text style={styles.previewTitle}>Finish</Text>
@@ -481,6 +750,7 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
 
         <TimerControls
           isNarrow={isNarrow}
+          showPausedActions={isPaused}
           primaryLabel={primaryLabel}
           disablePrev={disablePrev}
           disablePrimary={disablePrimary}
@@ -521,16 +791,17 @@ const styles = StyleSheet.create({
   backButton: {
     marginTop: 12,
   },
-  scheduleName: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#0f172a',
-    marginBottom: 8,
-  },
   currentLabel: {
     fontSize: 28,
     fontWeight: '800',
     color: '#0f172a',
+    marginBottom: 2,
+  },
+  currentProgress: {
+    fontSize: 26,
+    fontWeight: '400',
+    color: '#64748b',
+    opacity: 0.7,
     marginBottom: 8,
   },
   previewLabel: {
@@ -546,7 +817,7 @@ const styles = StyleSheet.create({
   },
   nextRow: {
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 36,
   },
   countdownContainer: {
     flex: 1,
@@ -558,6 +829,66 @@ const styles = StyleSheet.create({
     fontSize: 96,
     fontWeight: '800',
     color: '#fff',
+  },
+  finishedContainer: {
+    flex: 1,
+    backgroundColor: '#0f172a',
+    padding: 24,
+    paddingBottom: 32,
+  },
+  finishedHero: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  finishedHalo: {
+    position: 'absolute',
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    borderWidth: 2,
+    borderColor: '#67e8f9',
+  },
+  finishedBadge: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: '#f8fafc',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.22,
+    shadowRadius: 18,
+    elevation: 8,
+  },
+  finishedContent: {
+    alignItems: 'center',
+    marginTop: 24,
+  },
+  finishedTitle: {
+    fontSize: 38,
+    fontWeight: '800',
+    color: '#fff',
+    textAlign: 'center',
+  },
+  finishedStreakLabel: {
+    marginTop: 18,
+    fontSize: 14,
+    color: '#94a3b8',
+    fontWeight: '600',
+  },
+  finishedStreakValue: {
+    marginTop: 6,
+    fontSize: 36,
+    fontWeight: '800',
+    color: '#f8fafc',
+  },
+  finishedButton: {
+    minHeight: 56,
+  },
+  finishedButtonPlaceholder: {
+    minHeight: 56,
   },
 });
 

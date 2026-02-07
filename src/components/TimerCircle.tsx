@@ -55,7 +55,8 @@ const styles = StyleSheet.create({
   circleWrapper: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginVertical: 20,
+    marginTop: 60,
+    marginBottom: 20,
   },
   circleCenter: {
     position: 'absolute',

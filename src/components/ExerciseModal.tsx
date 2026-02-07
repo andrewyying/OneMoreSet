@@ -1,5 +1,6 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { FlatList, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 
 import { Phase, formatSeconds } from '../lib/time';
 import { TimerState } from '../lib/timer';
@@ -16,6 +17,65 @@ type ExerciseModalProps = {
 
 const ExerciseModal: React.FC<ExerciseModalProps> = React.memo(
   ({ visible, onClose, exercisePhases, timerState, onSelectPhase }) => {
+    const exerciseDisplayMeta = useMemo(() => {
+      const displayByPhaseIndex: Record<number, { title: string; repeatProgress: string | null }> = {};
+      const repeatLabelPattern = /^(.*)\s\(x(\d+)\)$/;
+
+      for (let i = 0; i < exercisePhases.length; i += 1) {
+        const phase = exercisePhases[i];
+        const match = phase.label.match(repeatLabelPattern);
+        if (!match) {
+          displayByPhaseIndex[phase.phaseIndex] = {
+            title: phase.label,
+            repeatProgress: null,
+          };
+          continue;
+        }
+
+        const baseTitle = match[1];
+        const firstRep = Number.parseInt(match[2], 10);
+        if (firstRep <= 0) {
+          displayByPhaseIndex[phase.phaseIndex] = {
+            title: phase.label,
+            repeatProgress: null,
+          };
+          continue;
+        }
+
+        let groupEnd = i;
+        let expectedRep = firstRep + 1;
+        while (groupEnd + 1 < exercisePhases.length) {
+          const next = exercisePhases[groupEnd + 1];
+          const nextMatch = next.label.match(repeatLabelPattern);
+          if (!nextMatch) {
+            break;
+          }
+          const nextBaseTitle = nextMatch[1];
+          const nextRep = Number.parseInt(nextMatch[2], 10);
+          if (nextBaseTitle !== baseTitle || nextRep !== expectedRep) {
+            break;
+          }
+          groupEnd += 1;
+          expectedRep += 1;
+        }
+
+        const totalReps = expectedRep - 1;
+        for (let groupIndex = i; groupIndex <= groupEnd; groupIndex += 1) {
+          const groupPhase = exercisePhases[groupIndex];
+          const groupMatch = groupPhase.label.match(repeatLabelPattern);
+          const currentRep = groupMatch ? Number.parseInt(groupMatch[2], 10) : 1;
+          displayByPhaseIndex[groupPhase.phaseIndex] = {
+            title: baseTitle,
+            repeatProgress: `${currentRep}/${totalReps}`,
+          };
+        }
+
+        i = groupEnd;
+      }
+
+      return displayByPhaseIndex;
+    }, [exercisePhases]);
+
     const handleSelectPhase = useCallback(
       (phaseIndex: number) => {
         onSelectPhase(phaseIndex);
@@ -28,6 +88,7 @@ const ExerciseModal: React.FC<ExerciseModalProps> = React.memo(
       ({ item }: { item: ExercisePhase }) => {
         const isDone = item.phaseIndex < timerState.currentStepIndex || timerState.status === 'finished';
         const isCurrent = item.phaseIndex === timerState.currentStepIndex;
+        const display = exerciseDisplayMeta[item.phaseIndex] ?? { title: item.label, repeatProgress: null };
         return (
           <TouchableOpacity
             style={styles.exerciseRow}
@@ -36,25 +97,23 @@ const ExerciseModal: React.FC<ExerciseModalProps> = React.memo(
           >
             <View style={styles.exerciseText}>
               <Text style={styles.exerciseLabel} numberOfLines={1}>
-                {item.label}
+                {display.title}
+                {' '}
+                {display.repeatProgress ? <Text style={styles.exerciseRepeatInline}> {display.repeatProgress}</Text> : null}
               </Text>
               <Text style={styles.exerciseMeta}>{formatSeconds(item.durationSec)}</Text>
             </View>
-            <View style={[styles.statusPill, isDone && styles.statusDone, isCurrent && !isDone && styles.statusCurrent]}>
-              <Text
-                style={[
-                  styles.statusText,
-                  isDone && styles.statusDoneText,
-                  isCurrent && !isDone && styles.statusCurrentText,
-                ]}
-              >
-                {isDone ? 'Done' : isCurrent ? 'Current' : 'Upcoming'}
-              </Text>
+            <View style={styles.statusIconContainer}>
+              {isDone ? (
+                <MaterialIcons name="check-circle" size={22} color="green" />
+              ) : isCurrent ? (
+                <MaterialIcons name="radio-button-checked" size={22} color="#64748b" opacity={0.7} />
+              ) : null}
             </View>
           </TouchableOpacity>
         );
       },
-      [handleSelectPhase, timerState.currentStepIndex, timerState.status],
+      [exerciseDisplayMeta, handleSelectPhase, timerState.currentStepIndex, timerState.status],
     );
 
     return (
@@ -127,30 +186,15 @@ const styles = StyleSheet.create({
     color: '#475569',
     marginTop: 2,
   },
-  statusPill: {
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
+  exerciseRepeatInline: {
+    color: '#64748b',
+    opacity: 0.7,
+    fontWeight: '400',
   },
-  statusDone: {
-    backgroundColor: '#e5e7eb',
-    borderColor: '#e5e7eb',
-  },
-  statusCurrent: {
-    backgroundColor: '#0ea5e9',
-    borderColor: '#0ea5e9',
-  },
-  statusText: {
-    fontWeight: '700',
-    color: '#475569',
-  },
-  statusDoneText: {
-    color: '#0f172a',
-  },
-  statusCurrentText: {
-    color: '#fff',
+  statusIconContainer: {
+    width: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   exerciseDivider: {
     height: 1,
