@@ -170,7 +170,7 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
 
     const interval = setInterval(() => {
       setTimerState((prev) => tickTimer(prev, phasesRef.current, Date.now()));
-    }, 200);
+    }, 15);
 
     return () => clearInterval(interval);
   }, [timerState.status]);
@@ -358,6 +358,34 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
       progressPercent,
     };
   }, [phases, timerState.currentStepIndex, timerState.remainingMs]);
+  const currentTitleStep = useMemo(() => {
+    if (!schedule) {
+      return { title: currentStep?.label ?? 'No exercises', repeatProgress: null as string | null };
+    }
+
+    const titlePhases: { title: string; repeatProgress: string | null }[] = [];
+    const restBetweenSec = Math.max(0, Math.floor(schedule.restBetweenSec ?? 0));
+
+    schedule.steps.forEach((step, stepIndex) => {
+      const repeats = Math.max(1, Math.floor(step.repeatCount ?? 1));
+      for (let rep = 0; rep < repeats; rep += 1) {
+        titlePhases.push({
+          title: step.label,
+          repeatProgress: repeats > 1 ? `${rep + 1}/${repeats}` : null,
+        });
+
+        const isLastOverall = rep === repeats - 1 && stepIndex === schedule.steps.length - 1;
+        if (restBetweenSec > 0 && !isLastOverall) {
+          titlePhases.push({ title: 'Rest', repeatProgress: null });
+        }
+      }
+    });
+
+    return titlePhases[timerState.currentStepIndex] ?? {
+      title: currentStep?.label ?? 'No exercises',
+      repeatProgress: null,
+    };
+  }, [currentStep?.label, schedule, timerState.currentStepIndex]);
 
   const handlePrimaryControl = useCallback(() => {
     const now = Date.now();
@@ -453,8 +481,11 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        <Text style={styles.scheduleName}>{schedule.name}</Text>
-        <Text style={styles.currentLabel}>{currentStep?.label ?? 'No exercises'}</Text>
+        <Text style={styles.currentLabel}>{currentTitleStep.title}</Text>
+        {currentTitleStep.repeatProgress ? (
+          <Text style={styles.currentProgress}>{currentTitleStep.repeatProgress}</Text>
+        ) : <Text style={styles.currentProgress}>{' '}</Text>
+        }
 
         <TimerCircle
           radius={radius}
@@ -472,7 +503,7 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
             <Text style={styles.previewTitle}>Congratulations! You finished the workout</Text>
           ) : upcomingStep ? (
             <>
-              <Text style={styles.previewTitle}>{upcomingStep.label}</Text>
+              <Text style={styles.previewTitle}>{upcomingStep.label.replace(/\s\(x\d+\)$/, '')}</Text>
             </>
           ) : (
             <Text style={styles.previewTitle}>Finish</Text>
@@ -481,6 +512,7 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
 
         <TimerControls
           isNarrow={isNarrow}
+          showPausedActions={isPaused}
           primaryLabel={primaryLabel}
           disablePrev={disablePrev}
           disablePrimary={disablePrimary}
@@ -521,16 +553,17 @@ const styles = StyleSheet.create({
   backButton: {
     marginTop: 12,
   },
-  scheduleName: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#0f172a',
-    marginBottom: 8,
-  },
   currentLabel: {
     fontSize: 28,
     fontWeight: '800',
     color: '#0f172a',
+    marginBottom: 2,
+  },
+  currentProgress: {
+    fontSize: 26,
+    fontWeight: '400',
+    color: '#64748b',
+    opacity: 0.7,
     marginBottom: 8,
   },
   previewLabel: {
@@ -546,7 +579,7 @@ const styles = StyleSheet.create({
   },
   nextRow: {
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 36,
   },
   countdownContainer: {
     flex: 1,
