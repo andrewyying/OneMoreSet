@@ -93,15 +93,21 @@ const createSampleSchedule = (): Schedule => {
   const now = Date.now();
   const steps: Step[] = [];
 
-  for (let round = 1; round <= 8; round += 1) {
-    steps.push(sanitizeStep({ label: `Round ${round}`, durationSec: 30, repeatCount: 1 }, steps.length));
-  }
+  steps.push(sanitizeStep({label: `Jump Squats`, durationSec: 30, repeatCount: 3}, steps.length));
+  steps.push(sanitizeStep({label: `Burpees`, durationSec: 25, repeatCount: 3}, steps.length));
+  steps.push(sanitizeStep({label: `High Knees Sprint`, durationSec: 35, repeatCount: 3}, steps.length));
+  steps.push(sanitizeStep({label: `Push-ups`, durationSec: 30, repeatCount: 3}, steps.length));
+  steps.push(sanitizeStep({label: `Mountain Climbers`, durationSec: 35, repeatCount: 3}, steps.length));
+  steps.push(sanitizeStep({label: `Plank Shoulder Taps`, durationSec: 40, repeatCount: 2}, steps.length));
+  steps.push(sanitizeStep({label: `Reverse Lunges`, durationSec: 30, repeatCount: 3}, steps.length));
+  steps.push(sanitizeStep({label: `Glute Bridges`, durationSec: 40, repeatCount: 2}, steps.length));
+  steps.push(sanitizeStep({label: `Wall Sit`, durationSec: 45, repeatCount: 2}, steps.length));
 
   return {
     id: generateId('schedule'),
-    name: 'Demo: 30s on / 10s rest x8',
+    name: 'Demo: 20 mins Quick HIIT',
     steps,
-    restBetweenSec: 10,
+    restBetweenSec: 15,
     createdAt: now,
     updatedAt: now,
   };
