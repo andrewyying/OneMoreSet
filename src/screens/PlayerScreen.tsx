@@ -631,7 +631,7 @@ const styles = StyleSheet.create({
   },
   countdownContainer: {
     flex: 1,
-    backgroundColor: '#0f172a',
+    backgroundColor: 'rgba(15, 23, 42, 0.93)',
     alignItems: 'center',
     justifyContent: 'center',
   },

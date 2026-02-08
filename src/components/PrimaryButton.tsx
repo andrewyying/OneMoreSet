@@ -12,7 +12,7 @@ type Props = {
 };
 
 const variantStyles: Record<ButtonVariant, { backgroundColor: string; textColor: string }> = {
-  primary: { backgroundColor: '#0f172a', textColor: '#ffffff' },
+  primary: { backgroundColor: 'rgba(15, 23, 42, 0.93)', textColor: '#ffffff' },
   secondary: { backgroundColor: '#e5e7eb', textColor: '#111827' },
   ghost: { backgroundColor: 'transparent', textColor: '#111827' },
   danger: { backgroundColor: '#b91c1c', textColor: '#ffffff' },

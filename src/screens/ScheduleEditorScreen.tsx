@@ -286,8 +286,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   checkboxChecked: {
-    backgroundColor: '#0f172a',
-    borderColor: '#0f172a',
+    backgroundColor: 'rgba(15, 23, 42, 0.93)',
+    borderColor: 'rgba(15, 23, 42, 0.93)',
   },
   checkboxLabel: {
     fontSize: 17,
@@ -310,7 +310,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 8,
-    backgroundColor: '#0f172a',
+    backgroundColor: 'rgba(15, 23, 42, 0.93)',
   },
   saveButtonText: {
     fontSize: 16,

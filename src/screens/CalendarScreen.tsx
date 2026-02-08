@@ -423,11 +423,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#e2e8f0',
   },
   dayBubbleSelected: {
-    backgroundColor: '#0f172a',
+    backgroundColor: 'rgba(15, 23, 42, 0.93)',
   },
   dayBubbleToday: {
     borderWidth: 1,
-    borderColor: '#0f172a',
+    borderColor: 'rgba(15, 23, 42, 0.93)',
   },
   dayText: {
     fontSize: DAY_TEXT_FONT_SIZE,

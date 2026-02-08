@@ -11,10 +11,10 @@ const LIVE_ACTIVITY_RESYNC_INTERVAL_MS = 1000;
 const LIVE_ACTIVITY_RESYNC_ATTEMPTS = 5;
 
 const LIVE_ACTIVITY_CONFIG: LiveActivity.LiveActivityConfig = {
-  backgroundColor: '#0f172a',
+  backgroundColor: 'rgba(15, 23, 42, 0.93)',
   titleColor: '#f8fafc',
   subtitleColor: '#e2e8f0',
-  progressViewTint: '#0f172a',
+  progressViewTint: 'rgba(15, 23, 42, 0.93)',
   progressViewLabelColor: '#f8fafc',
   timerType: 'digital',
   imagePosition: 'left',
