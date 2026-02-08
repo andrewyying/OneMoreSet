@@ -286,8 +286,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   checkboxChecked: {
-    backgroundColor: '#0ea5e9',
-    borderColor: '#0ea5e9',
+    backgroundColor: '#0f172a',
+    borderColor: '#0f172a',
   },
   checkboxLabel: {
     fontSize: 17,

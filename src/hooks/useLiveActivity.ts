@@ -14,7 +14,7 @@ const LIVE_ACTIVITY_CONFIG: LiveActivity.LiveActivityConfig = {
   backgroundColor: '#0f172a',
   titleColor: '#f8fafc',
   subtitleColor: '#e2e8f0',
-  progressViewTint: '#0ea5e9',
+  progressViewTint: '#0f172a',
   progressViewLabelColor: '#f8fafc',
   timerType: 'digital',
   imagePosition: 'left',

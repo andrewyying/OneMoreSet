@@ -329,7 +329,7 @@ const styles = StyleSheet.create({
   todayButton: {
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: '#cbd5f5',
+    borderColor: '#cbd5e1',
     paddingHorizontal: 14,
     paddingVertical: 6,
     backgroundColor: '#fff',
@@ -420,14 +420,14 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   dayBubbleHighlighted: {
-    backgroundColor: '#e0f2fe',
+    backgroundColor: '#e2e8f0',
   },
   dayBubbleSelected: {
-    backgroundColor: '#0ea5e9',
+    backgroundColor: '#0f172a',
   },
   dayBubbleToday: {
     borderWidth: 1,
-    borderColor: '#0ea5e9',
+    borderColor: '#0f172a',
   },
   dayText: {
     fontSize: DAY_TEXT_FONT_SIZE,

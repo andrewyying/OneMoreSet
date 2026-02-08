@@ -30,7 +30,7 @@ const MainTabs: React.FC = () => (
   <Tab.Navigator
     screenOptions={({ route }) => ({
       headerShown: false,
-      tabBarActiveTintColor: '#0ea5e9',
+      tabBarActiveTintColor: '#0f172a',
       tabBarInactiveTintColor: '#94a3b8',
       tabBarShowLabel: false,
       tabBarIcon: ({ color, size }) => {
@@ -55,7 +55,11 @@ const AppNavigator: React.FC = () => {
         }}
       >
         <Stack.Screen name="MainTabs" component={MainTabs} options={{ headerShown: false }} />
-        <Stack.Screen name="ScheduleEditor" component={ScheduleEditorScreen} options={{ title: 'Edit Schedule' }} />
+        <Stack.Screen
+          name="ScheduleEditor"
+          component={ScheduleEditorScreen}
+          options={{ title: 'Edit Schedule', headerTintColor: '#0f172a' }}
+        />
         <Stack.Screen
           name="Player"
           component={PlayerScreen}
