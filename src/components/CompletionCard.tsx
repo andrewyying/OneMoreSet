@@ -31,39 +31,58 @@ const CompletionCard: React.FC<CompletionCardProps> = React.memo(({ completion, 
     [completion.restBetweenSec, completion.steps],
   );
   const exerciseCount = useMemo(() => getExerciseCount(completion.steps), [completion.steps]);
+  const completionCardStyle = useCallback(
+    ({ pressed }: { pressed: boolean }) => [
+      styles.completionCard,
+      pressed ? styles.completionCardPressed : undefined,
+    ],
+    [],
+  );
 
   return (
     <Pressable
       onLongPress={confirmDelete}
       delayLongPress={450}
-      style={({ pressed }) => [styles.completionCard, pressed ? styles.completionCardPressed : undefined]}
+      style={completionCardStyle}
     >
-      <View style={styles.completionHeader}>
-        <Text style={styles.completionTitle} numberOfLines={1}>
-          {completion.scheduleName}
-        </Text>
-        <View style={styles.completionActions}>
-          <Text style={styles.completionTime}>{formatTimeLabel(completion.completedAt)}</Text>
+      <View style={styles.completionAccent} />
+      <View style={styles.completionContent}>
+        <View style={styles.completionHeader}>
+          <Text style={styles.completionTitle} numberOfLines={1}>
+            {completion.scheduleName}
+          </Text>
+          <View style={styles.completionActions}>
+            <Text style={styles.completionTime}>{formatTimeLabel(completion.completedAt)}</Text>
+          </View>
         </View>
+        <Text style={styles.completionMeta}>
+          {exerciseCount} exercises - {formatSeconds(totalDuration)}
+        </Text>
       </View>
-      <Text style={styles.completionMeta}>
-        {exerciseCount} exercises - {formatSeconds(totalDuration)}
-      </Text>
     </Pressable>
   );
 });
 
 const styles = StyleSheet.create({
   completionCard: {
-    padding: 12,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    backgroundColor: '#f8fafc',
-    marginBottom: 15,
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    marginBottom: 14,
+  },
+  completionAccent: {
+    width: 4,
+    borderRadius: 999,
+    backgroundColor: 'rgba(15, 23, 42, 0.93)',
+    marginRight: 12,
+    marginVertical: 2,
+  },
+  completionContent: {
+    flex: 1,
+    paddingVertical: 10,
+    paddingRight: 8,
   },
   completionCardPressed: {
-    backgroundColor: '#eef2f7',
+    opacity: 0.72,
   },
   completionHeader: {
     flexDirection: 'row',
