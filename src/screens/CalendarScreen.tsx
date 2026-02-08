@@ -14,7 +14,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 
 import CompletionCard from '../components/CompletionCard';
 import { CALENDAR_ROWS, CalendarCell } from '../lib/calendar';
-import { formatLongDate, formatMonthLabel, startOfMonth, toDateKey } from '../lib/date';
+import { formatMonthLabel, startOfDay, startOfMonth, toDateKey } from '../lib/date';
 import { useCalendar } from '../hooks/useCalendar';
 import { useCompletions } from '../store/completions';
 import { WorkoutCompletion } from '../types/models';
@@ -92,6 +92,17 @@ const CalendarScreen: React.FC = () => {
 
   const gridPageStyle = useMemo(() => [styles.gridPage, { width: gridWidth }], [gridWidth]);
   const gridWrapperStyle = useMemo(() => [styles.gridWrapper, { height: gridHeight }], [gridHeight]);
+  const currentStreakDays = useMemo(() => {
+    let streakDays = 0;
+    const cursor = startOfDay(today);
+
+    while (completionsByDay.has(toDateKey(cursor))) {
+      streakDays += 1;
+      cursor.setDate(cursor.getDate() - 1);
+    }
+
+    return streakDays;
+  }, [completionsByDay, today]);
   const renderCompletionItem = useCallback<ListRenderItem<WorkoutCompletion>>(
     ({ item }) => <CompletionCard completion={item} onDelete={handleDeleteCompletion} />,
     [handleDeleteCompletion],
@@ -216,7 +227,10 @@ const CalendarScreen: React.FC = () => {
           </Pressable>
           <View style={styles.monthLabelGroup}>
             <Text style={styles.monthLabel}>{formatMonthLabel(currentMonth)}</Text>
-            <Text style={styles.monthMeta}>{completedDaysThisMonth} workout days this month</Text>
+            <Text style={styles.monthMeta}>
+              {completedDaysThisMonth} workout days this month • {currentStreakDays} day
+              {currentStreakDays === 1 ? '' : 's'} streak
+            </Text>
           </View>
           <Pressable
             onPress={() => handleMonthNav(1)}
@@ -257,7 +271,6 @@ const CalendarScreen: React.FC = () => {
       
       <View style={styles.detailSection}>
         <View style={styles.detailCard}>
-          <Text style={styles.detailTitle}>{formatLongDate(selectedDate)}</Text>
           {selectedCompletions.length === 0 ? (
             <Text style={styles.detailEmpty}>No workouts logged for this day.</Text>
           ) : (
@@ -444,25 +457,16 @@ const styles = StyleSheet.create({
   detailCard: {
     backgroundColor: '#fff',
     borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
     padding: 16,
     flex: 1,
     minHeight: 0,
   },
-  detailTitle: {
-    fontSize: 23,
-    fontFamily: 'BebasNeue_400Regular',
-    color: '#0f172a',
-  },
   detailSubtitle: {
-    marginTop: 6,
     fontSize: 16,
     fontFamily: 'BebasNeue_400Regular',
     color: '#475569',
   },
   detailEmpty: {
-    marginTop: 8,
     fontSize: 16,
     fontFamily: 'BebasNeue_400Regular',
     color: '#64748b',
