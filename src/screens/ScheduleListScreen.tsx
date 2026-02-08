@@ -146,8 +146,7 @@ const ScheduleListScreen: React.FC<Props> = ({ navigation }) => {
     <SafeAreaView style={styles.safeArea}>
       <View style={[styles.header, isNarrow && styles.headerNarrow]}>
         <View style={styles.headerText}>
-          <Text style={styles.title}>Schedules</Text>
-          <Text style={styles.subtitle}>Build and run your workouts.</Text>
+          <Text style={styles.title}>My Workouts</Text>
         </View>
         <Pressable
           onPress={handleCreateSchedule}

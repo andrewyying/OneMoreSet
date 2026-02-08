@@ -1,4 +1,4 @@
-﻿import { StatusBar } from 'expo-status-bar';
+import { StatusBar } from 'expo-status-bar';
 import React from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -46,7 +46,7 @@ export default function App() {
       <SafeAreaProvider>
         <View style={styles.centered}>
           <ActivityIndicator size="large" />
-          <Text style={styles.subtitle}>Loading fonts...</Text>
+          <Text style={styles.loadingSubtitle}>Loading fonts...</Text>
         </View>
       </SafeAreaProvider>
     );
@@ -81,6 +81,11 @@ const styles = StyleSheet.create({
     marginTop: 8,
     fontSize: 18,
     fontFamily: 'BebasNeue_400Regular',
+    color: '#444',
+  },
+  loadingSubtitle: {
+    marginTop: 8,
+    fontSize: 18,
     color: '#444',
   },
   detailText: {

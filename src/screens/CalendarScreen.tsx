@@ -197,7 +197,6 @@ const CalendarScreen: React.FC = () => {
       <View style={styles.header}>
         <View style={styles.headerText}>
           <Text style={styles.title}>Calendar</Text>
-          <Text style={styles.subtitle}>Track your workout streak.</Text>
         </View>
         <Pressable
           onPress={handleToday}
