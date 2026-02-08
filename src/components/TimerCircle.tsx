@@ -11,11 +11,10 @@ type TimerCircleProps = {
   strokeDashoffset: number;
   remainingSec: number;
   timerFontSize: number;
-  stepType?: 'exercise' | 'rest';
 };
 
 const TimerCircle: React.FC<TimerCircleProps> = React.memo(
-  ({ radius, strokeWidth, circumference, strokeDashoffset, remainingSec, timerFontSize, stepType }) => {
+  ({ radius, strokeWidth, circumference, strokeDashoffset, remainingSec, timerFontSize }) => {
     return (
       <View style={styles.circleWrapper}>
         <Svg width={(radius + strokeWidth) * 2} height={(radius + strokeWidth) * 2}>
@@ -44,7 +43,6 @@ const TimerCircle: React.FC<TimerCircleProps> = React.memo(
         </Svg>
         <View style={styles.circleCenter}>
           <Text style={[styles.timerText, { fontSize: timerFontSize }]}>{formatSeconds(remainingSec)}</Text>
-          {stepType ? <Text style={styles.typeBadge}>{stepType.toUpperCase()}</Text> : null}
         </View>
       </View>
     );
@@ -55,8 +53,8 @@ const styles = StyleSheet.create({
   circleWrapper: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 60,
-    marginBottom: 20,
+    marginTop: 48,
+    marginBottom: 48,
   },
   circleCenter: {
     position: 'absolute',
@@ -66,15 +64,6 @@ const styles = StyleSheet.create({
   timerText: {
     fontSize: 64,
     fontWeight: '800',
-    color: '#0f172a',
-  },
-  typeBadge: {
-    marginLeft: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 12,
-    backgroundColor: '#e2e8f0',
-    fontWeight: '700',
     color: '#0f172a',
   },
 });

@@ -6,6 +6,7 @@ import { enableScreens } from 'react-native-screens';
 import { MaterialIcons } from '@expo/vector-icons';
 
 import PlayerScreen from '../screens/PlayerScreen';
+import WorkoutCompleteScreen from '../screens/WorkoutCompleteScreen';
 import ScheduleEditorScreen from '../screens/ScheduleEditorScreen';
 import ScheduleListScreen from '../screens/ScheduleListScreen';
 import CalendarScreen from '../screens/CalendarScreen';
@@ -53,6 +54,17 @@ const AppNavigator: React.FC = () => {
           name="Player"
           component={PlayerScreen}
           options={{ title: 'Player', headerShown: false, gestureEnabled: false }}
+        />
+        <Stack.Screen
+          name="WorkoutComplete"
+          component={WorkoutCompleteScreen}
+          options={{
+            title: 'Workout complete',
+            headerShown: false,
+            gestureEnabled: false,
+            animation: 'slide_from_right',
+            animationTypeForReplace: 'push',
+          }}
         />
       </Stack.Navigator>
     </NavigationContainer>

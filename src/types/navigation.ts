@@ -9,4 +9,5 @@ export type RootStackParamList = {
   MainTabs: NavigatorScreenParams<MainTabParamList> | undefined;
   ScheduleEditor: { scheduleId: string };
   Player: { scheduleId: string; startWithCountdown?: boolean };
+  WorkoutComplete: { streakDays: number; celebrationMessage: string };
 };
