@@ -16,6 +16,7 @@ enableScreens();
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
+const APP_FONT_FAMILY = 'BebasNeue_400Regular';
 
 const navigationTheme = {
   ...DefaultTheme,
@@ -29,9 +30,9 @@ const MainTabs: React.FC = () => (
   <Tab.Navigator
     screenOptions={({ route }) => ({
       headerShown: false,
-      tabBarActiveTintColor: '#0ea5e9',
+      tabBarActiveTintColor: '#0f172a',
       tabBarInactiveTintColor: '#94a3b8',
-      tabBarLabelStyle: { fontWeight: '700' },
+      tabBarShowLabel: false,
       tabBarIcon: ({ color, size }) => {
         const icon: React.ComponentProps<typeof MaterialIcons>['name'] =
           route.name === 'ScheduleList' ? 'list' : 'calendar-today';
@@ -47,9 +48,18 @@ const MainTabs: React.FC = () => (
 const AppNavigator: React.FC = () => {
   return (
     <NavigationContainer theme={navigationTheme}>
-      <Stack.Navigator>
+      <Stack.Navigator
+        screenOptions={{
+          headerTitleStyle: { fontFamily: APP_FONT_FAMILY },
+          headerBackTitleStyle: { fontFamily: APP_FONT_FAMILY },
+        }}
+      >
         <Stack.Screen name="MainTabs" component={MainTabs} options={{ headerShown: false }} />
-        <Stack.Screen name="ScheduleEditor" component={ScheduleEditorScreen} options={{ title: 'Edit Schedule' }} />
+        <Stack.Screen
+          name="ScheduleEditor"
+          component={ScheduleEditorScreen}
+          options={{ title: 'Edit Schedule', headerTintColor: '#0f172a' }}
+        />
         <Stack.Screen
           name="Player"
           component={PlayerScreen}

@@ -57,7 +57,7 @@ const ScheduleListItem: React.FC<ScheduleListItemProps> = React.memo(({ schedule
           {schedule.name}
         </Text>
         <Text style={styles.cardMeta}>
-          {exerciseCount} exercises · {formatSeconds(totalDuration)}
+          {exerciseCount} exercises - {formatSeconds(totalDuration)}
         </Text>
         <Pressable
           onPress={handleDelete}
@@ -146,8 +146,7 @@ const ScheduleListScreen: React.FC<Props> = ({ navigation }) => {
     <SafeAreaView style={styles.safeArea}>
       <View style={[styles.header, isNarrow && styles.headerNarrow]}>
         <View style={styles.headerText}>
-          <Text style={styles.title}>Schedules</Text>
-          <Text style={styles.subtitle}>Build and run your workouts.</Text>
+          <Text style={styles.title}>My Workouts</Text>
         </View>
         <Pressable
           onPress={handleCreateSchedule}
@@ -158,7 +157,7 @@ const ScheduleListScreen: React.FC<Props> = ({ navigation }) => {
           ]}
           hitSlop={12}
         >
-          <Text style={styles.fabText}>＋</Text>
+          <MaterialIcons name="add" size={22} color="#fff" />
         </Pressable>
       </View>
       <FlatList
@@ -207,12 +206,14 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   title: {
-    fontSize: 24,
-    fontWeight: '700',
+    fontSize: 31,
+    fontFamily: 'BebasNeue_400Regular',
     color: '#0f172a',
   },
   subtitle: {
     marginTop: 4,
+    fontSize: 16,
+    fontFamily: 'BebasNeue_400Regular',
     color: '#475569',
   },
   listContent: {
@@ -223,7 +224,7 @@ const styles = StyleSheet.create({
     width: 33,
     height: 33,
     borderRadius: 22,
-    backgroundColor: '#111827',
+    backgroundColor: '#0f172a',
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#0f172a',
@@ -237,12 +238,6 @@ const styles = StyleSheet.create({
   },
   fabPressed: {
     opacity: 0.85,
-  },
-  fabText: {
-    color: '#fff',
-    fontSize: 26,
-    fontWeight: '800',
-    marginTop: -1,
   },
   emptyContent: {
     flex: 1,
@@ -269,12 +264,14 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   cardTitle: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 23,
+    fontFamily: 'BebasNeue_400Regular',
     color: '#0f172a',
   },
   cardMeta: {
     marginTop: 4,
+    fontSize: 16,
+    fontFamily: 'BebasNeue_400Regular',
     color: '#475569',
   },
   cardActions: {
@@ -297,12 +294,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   emptyTitle: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 23,
+    fontFamily: 'BebasNeue_400Regular',
     color: '#0f172a',
   },
   emptySubtitle: {
     marginTop: 6,
+    fontSize: 16,
+    fontFamily: 'BebasNeue_400Regular',
     color: '#475569',
     textAlign: 'center',
   },
@@ -313,4 +312,3 @@ const styles = StyleSheet.create({
 });
 
 export default ScheduleListScreen;
-

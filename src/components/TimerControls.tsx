@@ -49,7 +49,7 @@ const TimerControls: React.FC<TimerControlsProps> = React.memo(
             disablePrev && styles.disabledControl,
           ]}
         >
-          <MaterialIcons name="skip-previous" size={26} color={disablePrev ? '#9ca3af' : '#111827'} />
+          <MaterialIcons name="skip-previous" size={26} color={disablePrev ? '#9ca3af' : '#0f172a'} />
         </TouchableOpacity>
         <TouchableOpacity
           accessibilityRole="button"
@@ -80,7 +80,7 @@ const TimerControls: React.FC<TimerControlsProps> = React.memo(
             disableNext && styles.disabledControl,
           ]}
         >
-          <MaterialIcons name="skip-next" size={26} color={disableNext ? '#9ca3af' : '#111827'} />
+          <MaterialIcons name="skip-next" size={26} color={disableNext ? '#9ca3af' : '#0f172a'} />
         </TouchableOpacity>
       </View>
     );
@@ -114,8 +114,8 @@ const styles = StyleSheet.create({
     borderColor: '#e5e7eb',
   },
   primaryControlButton: {
-    backgroundColor: '#111827',
-    borderColor: '#111827',
+    backgroundColor: '#0f172a',
+    borderColor: '#0f172a',
   },
   disabledControl: {
     opacity: 0.6,

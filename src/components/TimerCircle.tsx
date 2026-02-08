@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 
@@ -30,7 +30,7 @@ const TimerCircle: React.FC<TimerCircleProps> = React.memo(
             cx={radius + strokeWidth}
             cy={radius + strokeWidth}
             r={radius}
-            stroke="#0ea5e9"
+            stroke="#0f172a"
             strokeWidth={strokeWidth}
             strokeDasharray={circumference}
             strokeDashoffset={strokeDashoffset}
@@ -62,10 +62,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   timerText: {
-    fontSize: 64,
-    fontWeight: '800',
+    fontSize: 72,
+    fontFamily: 'BebasNeue_400Regular',
+    fontWeight: '700',
     color: '#0f172a',
   },
 });
 
 export default TimerCircle;
+
+
+

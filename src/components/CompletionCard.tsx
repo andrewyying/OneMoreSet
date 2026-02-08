@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+﻿import React, { useCallback, useMemo } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { formatTimeLabel } from '../lib/date';
@@ -47,7 +47,7 @@ const CompletionCard: React.FC<CompletionCardProps> = React.memo(({ completion, 
         </View>
       </View>
       <Text style={styles.completionMeta}>
-        {exerciseCount} exercises · {formatSeconds(totalDuration)}
+        {exerciseCount} exercises - {formatSeconds(totalDuration)}
       </Text>
     </Pressable>
   );
@@ -71,8 +71,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   completionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 20,
+    fontFamily: 'BebasNeue_400Regular',
     color: '#0f172a',
     flex: 1,
     marginRight: 10,
@@ -81,14 +81,19 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   completionTime: {
-    fontSize: 12,
+    fontSize: 15,
+    fontFamily: 'BebasNeue_400Regular',
     color: '#64748b',
   },
   completionMeta: {
     marginTop: 6,
-    fontSize: 13,
+    fontSize: 17,
+    fontFamily: 'BebasNeue_400Regular',
     color: '#475569',
   },
 });
 
 export default CompletionCard;
+
+
+

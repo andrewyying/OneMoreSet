@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   AppState,
@@ -75,7 +75,7 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
   );
   const { width } = useWindowDimensions();
   const isNarrow = width < 380;
-  const timerFontSize = Math.max(48, Math.min(88, width * 0.2));
+  const timerFontSize = Math.max(60, Math.min(112, width * 0.25));
 
   const [timerState, setTimerState] = useState<TimerState>(() => createInitialTimerState(phases));
   const lastStepIndexRef = useRef(timerState.currentStepIndex);
@@ -587,8 +587,8 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   title: {
-    fontSize: 24,
-    fontWeight: '700',
+    fontSize: 27,
+    fontFamily: 'BebasNeue_400Regular',
     color: '#0f172a',
   },
   backButton: {
@@ -602,26 +602,26 @@ const styles = StyleSheet.create({
   },
   currentLabel: {
     flex: 1,
-    fontSize: 28,
-    fontWeight: '800',
+    fontSize: 31,
+    fontFamily: 'BebasNeue_400Regular',
     color: '#0f172a',
     marginRight: 12,
   },
   currentProgress: {
-    fontSize: 28,
-    fontWeight: '400',
+    fontSize: 31,
+    fontFamily: 'BebasNeue_400Regular',
     color: '#64748b',
     opacity: 0.7,
     textAlign: 'right',
   },
   previewLabel: {
-    fontSize: 20,
-    fontWeight: '600',
+    fontSize: 22,
+    fontFamily: 'BebasNeue_400Regular',
     color: '#475569',
   },
   previewTitle: {
-    fontSize: 24,
-    fontWeight: '700',
+    fontSize: 27,
+    fontFamily: 'BebasNeue_400Regular',
     color: '#0f172a',
     marginTop: 4,
   },
@@ -636,11 +636,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   countdownNumber: {
-    fontSize: 96,
-    fontWeight: '800',
+    fontSize: 108,
+    fontFamily: 'BebasNeue_400Regular',
     color: '#fff',
   },
 });
 
 export default PlayerScreen;
+
+
+
 

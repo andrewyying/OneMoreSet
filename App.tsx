@@ -2,6 +2,7 @@ import { StatusBar } from 'expo-status-bar';
 import React from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
 
 import AppNavigator from './src/navigation/AppNavigator';
 import { CompletionProvider, useCompletions } from './src/store/completions';
@@ -36,6 +37,21 @@ const AppStateGate: React.FC = () => {
 };
 
 export default function App() {
+  const [fontsLoaded] = useFonts({
+    BebasNeue_400Regular,
+  });
+
+  if (!fontsLoaded) {
+    return (
+      <SafeAreaProvider>
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" />
+          <Text style={styles.loadingSubtitle}>Loading fonts...</Text>
+        </View>
+      </SafeAreaProvider>
+    );
+  }
+
   return (
     <ScheduleProvider>
       <CompletionProvider>
@@ -57,18 +73,25 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   title: {
-    fontSize: 28,
-    fontWeight: '700',
+    fontSize: 31,
+    fontFamily: 'BebasNeue_400Regular',
     color: '#111',
   },
   subtitle: {
     marginTop: 8,
-    fontSize: 16,
+    fontSize: 18,
+    fontFamily: 'BebasNeue_400Regular',
+    color: '#444',
+  },
+  loadingSubtitle: {
+    marginTop: 8,
+    fontSize: 18,
     color: '#444',
   },
   detailText: {
     marginTop: 4,
-    fontSize: 14,
+    fontSize: 16,
+    fontFamily: 'BebasNeue_400Regular',
     color: '#555',
     textAlign: 'center',
   },
@@ -76,3 +99,6 @@ const styles = StyleSheet.create({
     color: '#b00020',
   },
 });
+
+
+
