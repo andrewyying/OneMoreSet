@@ -65,14 +65,14 @@ const StepRow: React.FC<Props> = ({
       />
 
       <DurationInput
-        label="Duration (seconds)"
+        label="Duration (secs)"
         value={step.durationSec}
         onChange={(value) => setField('durationSec', value)}
         style={styles.duration}
       />
 
       <DurationInput
-        label="Repeats (sets)"
+        label="Sets"
         value={step.repeatCount}
         min={1}
         max={99}

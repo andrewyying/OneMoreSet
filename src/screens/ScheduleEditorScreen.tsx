@@ -7,6 +7,7 @@ import React, {
   useState,
 } from 'react';
 import {
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -17,6 +18,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { usePreventRemove } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { MaterialIcons } from '@expo/vector-icons';
 
@@ -27,32 +29,60 @@ import { generateId } from '../lib/ids';
 import { clampDuration, formatSeconds, getTotalDuration } from '../lib/time';
 import { useSchedules } from '../store/schedules';
 import { RootStackParamList } from '../types/navigation';
-import { Step } from '../types/models';
+import { ScheduleDraft, Step } from '../types/models';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ScheduleEditor'>;
+const AUTO_SAVE_DEBOUNCE_MS = 350;
+
+const createInitialStep = (): Step => ({
+  id: generateId('step'),
+  label: 'Step 1',
+  durationSec: 30,
+  repeatCount: 1,
+});
 
 const ScheduleEditorScreen: React.FC<Props> = ({ navigation, route }) => {
-  const { scheduleId } = route.params;
-  const { schedules, updateSchedule } = useSchedules();
+  const { scheduleId, isNew: isNewParam } = route.params;
+  const isNewSchedule = Boolean(isNewParam);
+  const { schedules, createSchedule, updateSchedule, deleteSchedule } = useSchedules();
   const schedule = schedules.find((item) => item.id === scheduleId);
   const insets = useSafeAreaInsets();
 
-  const [name, setName] = useState(schedule?.name ?? '');
-  const [steps, setSteps] = useState<Step[]>(schedule?.steps ?? []);
+  const [name, setName] = useState(schedule?.name ?? 'New Schedule');
+  const [steps, setSteps] = useState<Step[]>(schedule?.steps ?? [createInitialStep()]);
   const [restEnabled, setRestEnabled] = useState(Boolean(schedule?.restBetweenSec));
   const [restBetweenSec, setRestBetweenSec] = useState<number>(schedule?.restBetweenSec ?? 0);
   const [error, setError] = useState<string | null>(null);
   const initializedRef = useRef(false);
+  const allowLeaveRef = useRef(false);
+  const hasCreatedRef = useRef(false);
+  const lastSavedSignatureRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (schedule && !initializedRef.current) {
-      setName(schedule.name);
-      setSteps(schedule.steps);
-      setRestBetweenSec(schedule.restBetweenSec ?? 0);
-      setRestEnabled(Boolean(schedule.restBetweenSec));
-      initializedRef.current = true;
+    if (initializedRef.current) {
+      return;
     }
-  }, [schedule]);
+
+    if (isNewSchedule) {
+      initializedRef.current = true;
+      return;
+    }
+
+    if (!schedule) {
+      return;
+    }
+
+    setName(schedule.name);
+    setSteps(schedule.steps);
+    setRestBetweenSec(schedule.restBetweenSec ?? 0);
+    setRestEnabled(Boolean(schedule.restBetweenSec));
+    lastSavedSignatureRef.current = JSON.stringify({
+      name: schedule.name,
+      steps: schedule.steps,
+      restBetweenSec: schedule.restBetweenSec ?? 0,
+    });
+    initializedRef.current = true;
+  }, [isNewSchedule, schedule]);
 
   const totalDuration = useMemo(
     () => getTotalDuration({ steps, restBetweenSec: restEnabled ? restBetweenSec : 0 }),
@@ -60,7 +90,7 @@ const ScheduleEditorScreen: React.FC<Props> = ({ navigation, route }) => {
   );
   const contentPaddingBottom = useMemo(() => 64 + insets.bottom + 220, [insets.bottom]);
 
-  const handleSave = useCallback(() => {
+  const buildDraftFromForm = useCallback((showValidationError: boolean): ScheduleDraft | null => {
     const sanitizedSteps = steps
       .map((step, index) => ({
         ...step,
@@ -72,31 +102,153 @@ const ScheduleEditorScreen: React.FC<Props> = ({ navigation, route }) => {
       .filter((step) => step.durationSec >= 1);
 
     if (!sanitizedSteps.length) {
-      setError('Add at least one step with a duration.');
+      if (showValidationError) {
+        setError('Add at least one step with a duration.');
+      }
+      return null;
+    }
+
+    if (showValidationError) {
+      setError(null);
+    }
+
+    return {
+      name: name.trim() || 'Untitled',
+      steps: sanitizedSteps,
+      restBetweenSec: restEnabled ? clampDuration(restBetweenSec, 0) : 0,
+    };
+  }, [name, restBetweenSec, restEnabled, steps]);
+
+  useEffect(() => {
+    if (isNewSchedule || !initializedRef.current || !schedule) {
       return;
     }
 
-    setError(null);
+    const draft = buildDraftFromForm(true);
 
-    const nextName = name.trim() || 'Untitled';
-    updateSchedule(scheduleId, {
-      name: nextName,
-      steps: sanitizedSteps,
-      restBetweenSec: restEnabled ? clampDuration(restBetweenSec, 0) : 0,
-    });
+    if (!draft) {
+      return;
+    }
+
+    const draftSignature = JSON.stringify(draft);
+
+    if (draftSignature === lastSavedSignatureRef.current) {
+      return;
+    }
+
+    const timeout = setTimeout(() => {
+      updateSchedule(scheduleId, draft);
+      lastSavedSignatureRef.current = draftSignature;
+    }, AUTO_SAVE_DEBOUNCE_MS);
+
+    return () => clearTimeout(timeout);
+  }, [buildDraftFromForm, isNewSchedule, schedule, scheduleId, updateSchedule]);
+
+  const saveNewSchedule = useCallback((): boolean => {
+    const draft = buildDraftFromForm(true);
+
+    if (!draft) {
+      return false;
+    }
+
+    const createdId = createSchedule(draft);
+
+    if (!createdId) {
+      setError('Unable to create workout. Please try again.');
+      return false;
+    }
+
+    setError(null);
+    hasCreatedRef.current = true;
+    return true;
+  }, [buildDraftFromForm, createSchedule]);
+
+  const handleCreateWorkout = useCallback(() => {
+    const saved = saveNewSchedule();
+
+    if (!saved) {
+      return;
+    }
+
+    allowLeaveRef.current = true;
     navigation.goBack();
-  }, [name, navigation, restBetweenSec, restEnabled, scheduleId, steps, updateSchedule]);
+  }, [navigation, saveNewSchedule]);
+
+  const handleDeleteSchedule = useCallback(() => {
+    Alert.alert(
+      'Delete workout?',
+      'This workout will be permanently deleted.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            allowLeaveRef.current = true;
+            deleteSchedule(scheduleId);
+            navigation.goBack();
+          },
+        },
+      ],
+    );
+  }, [deleteSchedule, navigation, scheduleId]);
+
+  const handlePreventRemove = useCallback((event: { data: { action: unknown } }) => {
+    if (allowLeaveRef.current || hasCreatedRef.current) {
+      navigation.dispatch(event.data.action as never);
+      return;
+    }
+
+    Alert.alert(
+      'Save new workout?',
+      'Discard the change or save it as a new workout schedule.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Discard',
+          style: 'destructive',
+          onPress: () => {
+            allowLeaveRef.current = true;
+            navigation.dispatch(event.data.action as never);
+          },
+        },
+        {
+          text: 'Save',
+          onPress: () => {
+            const saved = saveNewSchedule();
+
+            if (!saved) {
+              return;
+            }
+
+            allowLeaveRef.current = true;
+            navigation.dispatch(event.data.action as never);
+          },
+        },
+      ],
+    );
+  }, [navigation, saveNewSchedule]);
+
+  usePreventRemove(isNewSchedule, handlePreventRemove);
 
   useLayoutEffect(() => {
     navigation.setOptions({
-      headerRight: () => (
-        <Pressable onPress={handleSave} style={styles.saveButton}>
-          <Text style={styles.saveButtonText}>Save</Text>
-        </Pressable>
-      ),
-      title: 'Edit Schedule',
+      headerRight: isNewSchedule
+        ? undefined
+        : () => (
+          <Pressable onPress={handleDeleteSchedule} style={styles.deleteButton}>
+            <Text style={styles.deleteButtonText}>Delete</Text>
+          </Pressable>
+        ),
+      title: isNewSchedule ? 'Create Workout' : 'Edit Workout',
     });
-  }, [handleSave, navigation]);
+  }, [handleDeleteSchedule, isNewSchedule, navigation]);
 
   const handleChangeStep = useCallback((index: number, updated: Step) => {
     setSteps((prev) => prev.map((step, idx) => (idx === index ? updated : step)));
@@ -131,7 +283,7 @@ const ScheduleEditorScreen: React.FC<Props> = ({ navigation, route }) => {
     ]);
   }, []);
 
-  if (!schedule) {
+  if (!isNewSchedule && !schedule) {
     return (
       <SafeAreaView style={styles.container}>
         <Text style={styles.title}>Schedule not found</Text>
@@ -152,7 +304,7 @@ const ScheduleEditorScreen: React.FC<Props> = ({ navigation, route }) => {
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="interactive"
         >
-        <Text style={styles.label}>Schedule name</Text>
+        <Text style={styles.label}>Workout name</Text>
         <TextInput
           style={styles.nameInput}
           placeholder="My Workout"
@@ -171,7 +323,7 @@ const ScheduleEditorScreen: React.FC<Props> = ({ navigation, route }) => {
               {restEnabled ? <MaterialIcons name="check" size={16} color="#fff" /> : null}
             </View>
             <Text style={styles.checkboxLabel} numberOfLines={1} ellipsizeMode="tail">
-              Add breaks in between
+              Rest between sets (secs)
             </Text>
           </Pressable>
           {restEnabled ? (
@@ -202,6 +354,9 @@ const ScheduleEditorScreen: React.FC<Props> = ({ navigation, route }) => {
         ))}
 
         <PrimaryButton label="Add Step" onPress={addStep} style={styles.addButton} />
+        {isNewSchedule ? (
+          <PrimaryButton label="Create New Workout" onPress={handleCreateWorkout} style={styles.createButton} />
+        ) : null}
         <View style={styles.footerSpace} />
         </ScrollView>
       </KeyboardAvoidingView>
@@ -261,7 +416,10 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   addButton: {
-    marginTop: 4,
+    marginVertical: 6,
+  },
+  createButton: {
+    marginVertical: 6,
   },
   restRow: {
     marginBottom: 12,
@@ -286,8 +444,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   checkboxChecked: {
-    backgroundColor: '#0f172a',
-    borderColor: '#0f172a',
+    backgroundColor: 'rgba(15, 23, 42, 0.93)',
+    borderColor: 'rgba(15, 23, 42, 0.93)',
   },
   checkboxLabel: {
     fontSize: 17,
@@ -306,13 +464,13 @@ const styles = StyleSheet.create({
   footerSpace: {
     height: 32,
   },
-  saveButton: {
+  deleteButton: {
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 8,
-    backgroundColor: '#0f172a',
+    backgroundColor: '#b91c1c',
   },
-  saveButtonText: {
+  deleteButtonText: {
     fontSize: 16,
     fontFamily: 'BebasNeue_400Regular',
     color: '#fff',

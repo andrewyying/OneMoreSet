@@ -174,7 +174,7 @@ const WorkoutCompleteScreen: React.FC<Props> = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f172a',
+    backgroundColor: 'rgba(15, 23, 42, 0.93)',
     padding: 24,
     paddingBottom: 32,
   },

@@ -1,6 +1,5 @@
 import React, { useCallback, useMemo } from 'react';
 import {
-  Alert,
   FlatList,
   ListRenderItem,
   Pressable,
@@ -29,29 +28,28 @@ type Props = CompositeScreenProps<
 
 type ScheduleListItemProps = {
   schedule: Schedule;
-  onPress: (id: string) => void;
+  onOpenEditor: (id: string) => void;
   onStart: (id: string) => void;
-  onDelete: (id: string, name: string) => void;
 };
 
-const ScheduleListItem: React.FC<ScheduleListItemProps> = React.memo(({ schedule, onPress, onStart, onDelete }) => {
+const ScheduleListItem: React.FC<ScheduleListItemProps> = React.memo(({ schedule, onOpenEditor, onStart }) => {
   const totalDuration = useMemo(
     () => getTotalDuration({ steps: schedule.steps, restBetweenSec: schedule.restBetweenSec }),
     [schedule.restBetweenSec, schedule.steps],
   );
   const exerciseCount = useMemo(() => getExerciseCount(schedule.steps), [schedule.steps]);
-  const handlePress = useCallback(() => onPress(schedule.id), [onPress, schedule.id]);
+  const handleOpenEditor = useCallback(() => onOpenEditor(schedule.id), [onOpenEditor, schedule.id]);
   const handleStart = useCallback(() => onStart(schedule.id), [onStart, schedule.id]);
-  const handleDelete = useCallback(
-    () => onDelete(schedule.id, schedule.name),
-    [onDelete, schedule.id, schedule.name],
-  );
 
   return (
-    <Pressable
-      style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
-      onPress={handlePress}
-    >
+    <View style={styles.card}>
+      <Pressable
+        onPress={handleOpenEditor}
+        hitSlop={10}
+        style={({ pressed }) => [styles.moreButton, pressed && styles.cardPressed]}
+      >
+        <MaterialIcons name="more-horiz" size={24} color="#64748b" />
+      </Pressable>
       <View style={styles.cardHeader}>
         <Text style={styles.cardTitle} numberOfLines={1}>
           {schedule.name}
@@ -59,64 +57,31 @@ const ScheduleListItem: React.FC<ScheduleListItemProps> = React.memo(({ schedule
         <Text style={styles.cardMeta}>
           {exerciseCount} exercises - {formatSeconds(totalDuration)}
         </Text>
-        <Pressable
-          onPress={handleDelete}
-          hitSlop={8}
-          style={({ pressed }) => [styles.trashTopRight, pressed && styles.cardPressed]}
-        >
-          <MaterialIcons name="delete-outline" size={22} color="#9ca3af" />
-        </Pressable>
       </View>
       <View style={styles.cardActions}>
         <PrimaryButton
           label="Start"
-          variant="ghost"
+          variant="primary"
           onPress={handleStart}
           style={styles.actionButton}
         />
       </View>
-    </Pressable>
+    </View>
   );
 });
 
 const ItemSeparator = () => <View style={styles.separator} />;
 
 const ScheduleListScreen: React.FC<Props> = ({ navigation }) => {
-  const { schedules, createSchedule, deleteSchedule } = useSchedules();
+  const { schedules } = useSchedules();
   const { width } = useWindowDimensions();
   const isNarrow = width < 380;
 
   const handleCreateSchedule = useCallback(() => {
-    const newId = createSchedule({
-      name: 'New Schedule',
-      restBetweenSec: 0,
-      steps: [
-        {
-          id: generateId('step'),
-          label: 'Step 1',
-          durationSec: 30,
-          repeatCount: 1,
-        },
-      ],
-    });
+    navigation.navigate('ScheduleEditor', { scheduleId: generateId('schedule'), isNew: true });
+  }, [navigation]);
 
-    if (newId) {
-      navigation.navigate('ScheduleEditor', { scheduleId: newId });
-    }
-  }, [createSchedule, navigation]);
-
-  const confirmDelete = useCallback((id: string, name: string) => {
-    Alert.alert('Delete schedule', `Delete "${name}"?`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => deleteSchedule(id),
-      },
-    ]);
-  }, [deleteSchedule]);
-
-  const handleOpenSchedule = useCallback(
+  const handleOpenEditor = useCallback(
     (id: string) => {
       navigation.navigate('ScheduleEditor', { scheduleId: id });
     },
@@ -134,12 +99,11 @@ const ScheduleListScreen: React.FC<Props> = ({ navigation }) => {
     ({ item }) => (
       <ScheduleListItem
         schedule={item}
-        onPress={handleOpenSchedule}
+        onOpenEditor={handleOpenEditor}
         onStart={handleStartSchedule}
-        onDelete={confirmDelete}
       />
     ),
-    [confirmDelete, handleOpenSchedule, handleStartSchedule],
+    [handleOpenEditor, handleStartSchedule],
   );
 
   return (
@@ -224,7 +188,7 @@ const styles = StyleSheet.create({
     width: 33,
     height: 33,
     borderRadius: 22,
-    backgroundColor: '#0f172a',
+    backgroundColor: 'rgba(15, 23, 42, 0.93)',
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#0f172a',
@@ -262,6 +226,7 @@ const styles = StyleSheet.create({
   },
   cardHeader: {
     marginBottom: 12,
+    paddingRight: 40,
   },
   cardTitle: {
     fontSize: 23,
@@ -282,11 +247,15 @@ const styles = StyleSheet.create({
   actionButton: {
     flex: 1,
   },
-  trashTopRight: {
+  moreButton: {
     position: 'absolute',
-    right: 4,
-    top: 4,
-    padding: 6,
+    right: 8,
+    top: 8,
+    minWidth: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   emptyState: {
     alignItems: 'center',

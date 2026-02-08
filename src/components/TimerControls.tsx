@@ -114,8 +114,8 @@ const styles = StyleSheet.create({
     borderColor: '#e5e7eb',
   },
   primaryControlButton: {
-    backgroundColor: '#0f172a',
-    borderColor: '#0f172a',
+    backgroundColor: 'rgba(15, 23, 42, 0.93)',
+    borderColor: 'rgba(15, 23, 42, 0.93)',
   },
   disabledControl: {
     opacity: 0.6,

@@ -7,7 +7,7 @@ export type MainTabParamList = {
 
 export type RootStackParamList = {
   MainTabs: NavigatorScreenParams<MainTabParamList> | undefined;
-  ScheduleEditor: { scheduleId: string };
+  ScheduleEditor: { scheduleId: string; isNew?: boolean };
   Player: { scheduleId: string; startWithCountdown?: boolean };
   WorkoutComplete: { streakDays: number; celebrationMessage: string };
 };
