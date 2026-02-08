@@ -58,7 +58,11 @@ const AppNavigator: React.FC = () => {
         <Stack.Screen
           name="ScheduleEditor"
           component={ScheduleEditorScreen}
-          options={{ title: 'Edit Schedule', headerTintColor: '#0f172a' }}
+          options={{
+            title: 'Edit Schedule',
+            headerTintColor: '#0f172a',
+            headerBackButtonDisplayMode: 'minimal',
+          }}
         />
         <Stack.Screen
           name="Player"

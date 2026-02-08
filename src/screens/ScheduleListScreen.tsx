@@ -73,28 +73,13 @@ const ScheduleListItem: React.FC<ScheduleListItemProps> = React.memo(({ schedule
 const ItemSeparator = () => <View style={styles.separator} />;
 
 const ScheduleListScreen: React.FC<Props> = ({ navigation }) => {
-  const { schedules, createSchedule } = useSchedules();
+  const { schedules } = useSchedules();
   const { width } = useWindowDimensions();
   const isNarrow = width < 380;
 
   const handleCreateSchedule = useCallback(() => {
-    const newId = createSchedule({
-      name: 'New Schedule',
-      restBetweenSec: 0,
-      steps: [
-        {
-          id: generateId('step'),
-          label: 'Step 1',
-          durationSec: 30,
-          repeatCount: 1,
-        },
-      ],
-    });
-
-    if (newId) {
-      navigation.navigate('ScheduleEditor', { scheduleId: newId });
-    }
-  }, [createSchedule, navigation]);
+    navigation.navigate('ScheduleEditor', { scheduleId: generateId('schedule'), isNew: true });
+  }, [navigation]);
 
   const handleOpenEditor = useCallback(
     (id: string) => {
