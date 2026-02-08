@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { StyleProp, StyleSheet, Text, TouchableOpacity, ViewStyle } from 'react-native';
 
 type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
@@ -61,8 +61,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   label: {
-    fontWeight: '600',
-    fontSize: 16,
+    fontSize: 18,
+    fontFamily: 'BebasNeue_400Regular',
   },
   ghostBorder: {
     borderColor: '#d1d5db',
@@ -76,4 +76,7 @@ const styles = StyleSheet.create({
 });
 
 export default PrimaryButton;
+
+
+
 

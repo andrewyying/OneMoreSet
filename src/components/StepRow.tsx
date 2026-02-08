@@ -38,14 +38,14 @@ const StepRow: React.FC<Props> = ({
             disabled={index === 0}
             style={[styles.iconButton, index === 0 && styles.iconButtonDisabled]}
           >
-            <Text style={styles.iconText}>↑</Text>
+            <MaterialIcons name="keyboard-arrow-up" size={22} color="#0f172a" />
           </Pressable>
           <Pressable
             onPress={() => onMoveDown(index)}
             disabled={index === total - 1}
             style={[styles.iconButton, index === total - 1 && styles.iconButtonDisabled]}
           >
-            <Text style={styles.iconText}>↓</Text>
+            <MaterialIcons name="keyboard-arrow-down" size={22} color="#0f172a" />
           </Pressable>
           <Pressable
             onPress={() => onDelete(index)}
@@ -100,8 +100,8 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   title: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 21,
+    fontFamily: 'BebasNeue_400Regular',
     color: '#0f172a',
   },
   headerActions: {
@@ -109,8 +109,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   iconButton: {
-    width: 32,
-    height: 32,
+    width: 34,
+    height: 34,
     borderRadius: 8,
     backgroundColor: '#e2e8f0',
     alignItems: 'center',
@@ -119,11 +119,6 @@ const styles = StyleSheet.create({
   },
   iconButtonDisabled: {
     opacity: 0.4,
-  },
-  iconText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#0f172a',
   },
   trashButton: {
     padding: 6,
@@ -137,7 +132,8 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    fontSize: 16,
+    fontSize: 20,
+    fontFamily: 'BebasNeue_400Regular',
     color: '#0f172a',
     marginBottom: 10,
   },
@@ -147,4 +143,3 @@ const styles = StyleSheet.create({
 });
 
 export default StepRow;
-

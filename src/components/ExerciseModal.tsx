@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+﻿import React, { useCallback, useMemo } from 'react';
 import { FlatList, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 
@@ -162,8 +162,8 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   sheetTitle: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 20,
+    fontFamily: 'BebasNeue_400Regular',
     color: '#0f172a',
     marginBottom: 12,
   },
@@ -178,18 +178,19 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   exerciseLabel: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 18,
+    fontFamily: 'BebasNeue_400Regular',
     color: '#0f172a',
   },
   exerciseMeta: {
+    fontFamily: 'BebasNeue_400Regular',
     color: '#475569',
     marginTop: 2,
   },
   exerciseRepeatInline: {
+    fontFamily: 'BebasNeue_400Regular',
     color: '#64748b',
     opacity: 0.7,
-    fontWeight: '400',
   },
   statusIconContainer: {
     width: 24,
@@ -201,6 +202,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#e5e7eb',
   },
   emptyExercises: {
+    fontFamily: 'BebasNeue_400Regular',
     textAlign: 'center',
     paddingVertical: 12,
     color: '#475569',
@@ -208,3 +210,6 @@ const styles = StyleSheet.create({
 });
 
 export default ExerciseModal;
+
+
+

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+﻿import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, Easing, InteractionManager, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -209,21 +209,21 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   title: {
-    fontSize: 38,
-    fontWeight: '800',
+    fontSize: 43,
+    fontFamily: 'BebasNeue_400Regular',
     color: '#fff',
     textAlign: 'center',
   },
   streakLabel: {
     marginTop: 18,
-    fontSize: 14,
+    fontSize: 16,
+    fontFamily: 'BebasNeue_400Regular',
     color: '#94a3b8',
-    fontWeight: '600',
   },
   streakValue: {
     marginTop: 6,
-    fontSize: 36,
-    fontWeight: '800',
+    fontSize: 40,
+    fontFamily: 'BebasNeue_400Regular',
     color: '#f8fafc',
   },
   doneButton: {
@@ -235,3 +235,6 @@ const styles = StyleSheet.create({
 });
 
 export default WorkoutCompleteScreen;
+
+
+

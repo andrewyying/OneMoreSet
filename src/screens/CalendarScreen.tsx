@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+﻿import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import {
   FlatList,
   ListRenderItem,
@@ -24,8 +24,8 @@ const CALENDAR_HORIZONTAL_PADDING = 16;
 const DAY_CELL_PADDING = 3;
 const DAY_CELL_MARGIN_BOTTOM = 6;
 const DAY_BUBBLE_PADDING_VERTICAL = 8;
-const DAY_TEXT_FONT_SIZE = 14;
-const DAY_TEXT_LINE_HEIGHT = 16;
+const DAY_TEXT_FONT_SIZE = 18;
+const DAY_TEXT_LINE_HEIGHT = 20;
 const DAY_BUBBLE_HEIGHT = DAY_BUBBLE_PADDING_VERTICAL * 2 + DAY_TEXT_LINE_HEIGHT;
 const DAY_CELL_HEIGHT = DAY_BUBBLE_HEIGHT + DAY_CELL_PADDING * 2;
 const ROW_HEIGHT = DAY_CELL_HEIGHT + DAY_CELL_MARGIN_BOTTOM;
@@ -293,16 +293,20 @@ const styles = StyleSheet.create({
     paddingTop: 10,
   },
   title: {
-    fontSize: 24,
-    fontWeight: '700',
+    fontSize: 31,
+    fontFamily: 'BebasNeue_400Regular',
     color: '#0f172a',
   },
   subtitle: {
     marginTop: 4,
+    fontSize: 18,
+    fontFamily: 'BebasNeue_400Regular',
     color: '#475569',
   },
   detailText: {
     marginTop: 8,
+    fontSize: 16,
+    fontFamily: 'BebasNeue_400Regular',
     color: '#64748b',
     textAlign: 'center',
   },
@@ -335,8 +339,8 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
   todayButtonText: {
-    fontSize: 13,
-    fontWeight: '700',
+    fontSize: 17,
+    fontFamily: 'BebasNeue_400Regular',
     color: '#0f172a',
   },
   monthRow: {
@@ -351,13 +355,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   monthLabel: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 23,
+    fontFamily: 'BebasNeue_400Regular',
     color: '#0f172a',
   },
   monthMeta: {
     marginTop: 4,
-    fontSize: 12,
+    fontSize: 15,
+    fontFamily: 'BebasNeue_400Regular',
     color: '#64748b',
   },
   navButton: {
@@ -380,8 +385,8 @@ const styles = StyleSheet.create({
   weekdayLabel: {
     width: '14.285714%',
     textAlign: 'center',
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: 15,
+    fontFamily: 'BebasNeue_400Regular',
     color: '#94a3b8',
   },
   gridWrapper: {
@@ -427,8 +432,8 @@ const styles = StyleSheet.create({
   },
   dayText: {
     fontSize: DAY_TEXT_FONT_SIZE,
+    fontFamily: 'BebasNeue_400Regular',
     lineHeight: DAY_TEXT_LINE_HEIGHT,
-    fontWeight: '600',
     color: '#0f172a',
   },
   dayTextHighlighted: {
@@ -447,16 +452,20 @@ const styles = StyleSheet.create({
     minHeight: 0,
   },
   detailTitle: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 23,
+    fontFamily: 'BebasNeue_400Regular',
     color: '#0f172a',
   },
   detailSubtitle: {
     marginTop: 6,
+    fontSize: 16,
+    fontFamily: 'BebasNeue_400Regular',
     color: '#475569',
   },
   detailEmpty: {
     marginTop: 8,
+    fontSize: 16,
+    fontFamily: 'BebasNeue_400Regular',
     color: '#64748b',
   },
   completionList: {
@@ -476,4 +485,7 @@ const styles = StyleSheet.create({
 });
 
 export default CalendarScreen;
+
+
+
 

@@ -18,6 +18,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { MaterialIcons } from '@expo/vector-icons';
 
 import PrimaryButton from '../components/PrimaryButton';
 import StepRow from '../components/StepRow';
@@ -167,7 +168,7 @@ const ScheduleEditorScreen: React.FC<Props> = ({ navigation, route }) => {
         <View style={styles.restRow}>
           <Pressable onPress={() => setRestEnabled((prev) => !prev)} style={styles.checkboxRow}>
             <View style={[styles.checkbox, restEnabled && styles.checkboxChecked]}>
-              {restEnabled ? <Text style={styles.checkboxMark}>✓</Text> : null}
+              {restEnabled ? <MaterialIcons name="check" size={16} color="#fff" /> : null}
             </View>
             <Text style={styles.checkboxLabel} numberOfLines={1} ellipsizeMode="tail">
               Add breaks in between
@@ -217,12 +218,13 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   title: {
-    fontSize: 24,
-    fontWeight: '700',
+    fontSize: 31,
+    fontFamily: 'BebasNeue_400Regular',
     color: '#0f172a',
   },
   label: {
-    fontWeight: '600',
+    fontSize: 17,
+    fontFamily: 'BebasNeue_400Regular',
     color: '#0f172a',
     marginBottom: 8,
   },
@@ -232,7 +234,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 12,
-    fontSize: 16,
+    fontSize: 21,
+    fontFamily: 'BebasNeue_400Regular',
     backgroundColor: '#fff',
     marginBottom: 12,
   },
@@ -247,13 +250,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     borderRadius: 10,
     marginRight: 8,
-    fontWeight: '600',
+    fontSize: 16,
+    fontFamily: 'BebasNeue_400Regular',
     color: '#0f172a',
   },
   errorText: {
+    fontSize: 16,
+    fontFamily: 'BebasNeue_400Regular',
     color: '#b91c1c',
     marginBottom: 12,
-    fontWeight: '600',
   },
   addButton: {
     marginTop: 4,
@@ -284,12 +289,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#0ea5e9',
     borderColor: '#0ea5e9',
   },
-  checkboxMark: {
-    color: '#fff',
-    fontWeight: '800',
-  },
   checkboxLabel: {
-    fontWeight: '600',
+    fontSize: 17,
+    fontFamily: 'BebasNeue_400Regular',
     color: '#0f172a',
     marginRight: 8,
     flexShrink: 1,
@@ -311,8 +313,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#0f172a',
   },
   saveButtonText: {
+    fontSize: 16,
+    fontFamily: 'BebasNeue_400Regular',
     color: '#fff',
-    fontWeight: '700',
   },
   backButton: {
     marginTop: 12,
@@ -320,4 +323,3 @@ const styles = StyleSheet.create({
 });
 
 export default ScheduleEditorScreen;
-

@@ -117,28 +117,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   label: {
-    fontWeight: '600',
     marginRight: 8,
+    fontSize: 16,
+    fontFamily: 'BebasNeue_400Regular',
     color: '#0f172a',
     flexShrink: 1,
   },
   controls: {
     flexDirection: 'row',
     alignItems: 'center',
-    width: 170,
+    width: 182,
     marginLeft: 'auto',
   },
   stepper: {
-    width: 36,
-    height: 36,
+    width: 40,
+    height: 40,
     borderRadius: 8,
     backgroundColor: '#e2e8f0',
     alignItems: 'center',
     justifyContent: 'center',
   },
   stepperText: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 22,
+    fontFamily: 'BebasNeue_400Regular',
     color: '#0f172a',
   },
   input: {
@@ -149,14 +150,15 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#e5e7eb',
-    fontSize: 16,
+    fontSize: 18,
+    fontFamily: 'BebasNeue_400Regular',
     color: '#0f172a',
     textAlign: 'center',
   },
   valueBox: {
     flex: 1,
     marginHorizontal: 8,
-    paddingVertical: 10,
+    paddingVertical: 11,
     paddingHorizontal: 12,
     borderRadius: 8,
     borderWidth: 1,
@@ -165,8 +167,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   valueText: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 20,
+    fontFamily: 'BebasNeue_400Regular',
     color: '#0f172a',
   },
   modalOverlay: {
@@ -189,16 +191,15 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   sheetTitle: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 20,
+    fontFamily: 'BebasNeue_400Regular',
     color: '#0f172a',
   },
   sheetAction: {
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: 19,
+    fontFamily: 'BebasNeue_400Regular',
     color: '#0ea5e9',
   },
 });
 
 export default DurationInput;
-
