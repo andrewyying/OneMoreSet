@@ -1,8 +1,7 @@
-﻿import React, { useCallback, useMemo } from 'react';
+import React, { useCallback } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { formatTimeLabel } from '../lib/date';
-import { formatSeconds, getExerciseCount, getTotalDuration } from '../lib/time';
 import { WorkoutCompletion } from '../types/models';
 
 type CompletionCardProps = {
@@ -22,15 +21,6 @@ const CompletionCard: React.FC<CompletionCardProps> = React.memo(({ completion, 
     ]);
   }, [completion.id, onDelete]);
 
-  const totalDuration = useMemo(
-    () =>
-      getTotalDuration({
-        steps: completion.steps,
-        restBetweenSec: completion.restBetweenSec,
-      }),
-    [completion.restBetweenSec, completion.steps],
-  );
-  const exerciseCount = useMemo(() => getExerciseCount(completion.steps), [completion.steps]);
   const completionCardStyle = useCallback(
     ({ pressed }: { pressed: boolean }) => [
       styles.completionCard,
@@ -40,11 +30,7 @@ const CompletionCard: React.FC<CompletionCardProps> = React.memo(({ completion, 
   );
 
   return (
-    <Pressable
-      onLongPress={confirmDelete}
-      delayLongPress={450}
-      style={completionCardStyle}
-    >
+    <Pressable onLongPress={confirmDelete} delayLongPress={450} style={completionCardStyle}>
       <View style={styles.completionAccent} />
       <View style={styles.completionContent}>
         <View style={styles.completionHeader}>
@@ -55,9 +41,6 @@ const CompletionCard: React.FC<CompletionCardProps> = React.memo(({ completion, 
             <Text style={styles.completionTime}>{formatTimeLabel(completion.completedAt)}</Text>
           </View>
         </View>
-        <Text style={styles.completionMeta}>
-          {exerciseCount} exercises - {formatSeconds(totalDuration)}
-        </Text>
       </View>
     </Pressable>
   );
@@ -104,15 +87,6 @@ const styles = StyleSheet.create({
     fontFamily: 'BebasNeue_400Regular',
     color: '#64748b',
   },
-  completionMeta: {
-    marginTop: 6,
-    fontSize: 17,
-    fontFamily: 'BebasNeue_400Regular',
-    color: '#475569',
-  },
 });
 
 export default CompletionCard;
-
-
-

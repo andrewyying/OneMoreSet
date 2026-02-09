@@ -1,56 +1,129 @@
-import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import React, { useCallback } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 
 type SettingItem = {
   id: string;
   title: string;
-  subtitle: string;
   icon: React.ComponentProps<typeof MaterialIcons>['name'];
 };
 
-const SETTINGS_ITEMS: SettingItem[] = [
+type SettingSection = {
+  id: string;
+  title: string;
+  items: SettingItem[];
+};
+
+const SETTINGS_SECTIONS: SettingSection[] = [
   {
-    id: 'notifications',
-    title: 'Notifications',
-    subtitle: 'Manage workout reminders',
-    icon: 'notifications-none',
+    id: 'general',
+    title: 'General',
+    items: [
+      {
+        id: 'preferences',
+        title: 'Preferences',
+        icon: 'tune',
+      },
+      {
+        id: 'notifications',
+        title: 'Notifications',
+        icon: 'notifications-none',
+      },
+    ],
   },
   {
-    id: 'units',
-    title: 'Units',
-    subtitle: 'Set your preferred measurement units',
-    icon: 'straighten',
+    id: 'feedback',
+    title: 'Feedback',
+    items: [
+      {
+        id: 'send-feedback',
+        title: 'Share Feedback',
+        icon: 'chat-bubble-outline',
+      },
+      {
+        id: 'report-issue',
+        title: 'Report Issue',
+        icon: 'bug-report',
+      },
+      {
+        id: 'rate-app',
+        title: 'Rate This App',
+        icon: 'star-border',
+      },
+      {
+        id: 'follow-us',
+        title: 'Follow Us',
+        icon: 'alternate-email',
+      },
+    ],
   },
   {
-    id: 'support',
-    title: 'Support',
-    subtitle: 'Get help and send feedback',
-    icon: 'help-outline',
+    id: 'legal',
+    title: 'Legal',
+    items: [
+      {
+        id: 'privacy-data',
+        title: 'Privacy & Data',
+        icon: 'privacy-tip',
+      },
+      {
+        id: 'terms-of-service',
+        title: 'Terms of Service',
+        icon: 'description',
+      },
+    ],
+  },
+  {
+    id: 'danger-zone',
+    title: 'Danger Zone',
+    items: [
+      {
+        id: 'reset-progress',
+        title: 'Clear Workout History',
+        icon: 'restore',
+      },
+    ],
   },
 ];
 
 const SettingsScreen: React.FC = () => {
+  const handlePlaceholderPress = useCallback(() => {
+    // Placeholder for future settings actions.
+  }, []);
+
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Settings</Text>
-      </View>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Settings</Text>
+        </View>
 
-      <View style={styles.card}>
-        {SETTINGS_ITEMS.map((item) => (
-          <View key={item.id} style={styles.row}>
-            <View style={styles.rowIcon}>
-              <MaterialIcons name={item.icon} size={20} color="#475569" />
-            </View>
-            <View style={styles.rowText}>
-              <Text style={styles.rowTitle}>{item.title}</Text>
-              <Text style={styles.rowSubtitle}>{item.subtitle}</Text>
+        {SETTINGS_SECTIONS.map((section) => (
+          <View key={section.id} style={styles.section}>
+            <Text style={styles.sectionTitle}>{section.title}</Text>
+            <View style={styles.card}>
+              {section.items.map((item, index) => (
+                <View key={item.id}>
+                  <Pressable
+                    onPress={handlePlaceholderPress}
+                    style={({ pressed }) => [styles.row, pressed ? styles.rowPressed : undefined]}
+                  >
+                    <View style={styles.rowIcon}>
+                      <MaterialIcons name={item.icon} size={20} color="#475569" />
+                    </View>
+                    <View style={styles.rowText}>
+                      <Text style={styles.rowTitle}>{item.title}</Text>
+                    </View>
+                    <MaterialIcons name="chevron-right" size={20} color="#94a3b8" />
+                  </Pressable>
+                  {index < section.items.length - 1 ? <View style={styles.separator} /> : null}
+                </View>
+              ))}
             </View>
           </View>
         ))}
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 };
@@ -60,27 +133,32 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f8fafc',
   },
-  header: {
+  content: {
     paddingHorizontal: 16,
     paddingTop: 30,
+    paddingBottom: 24,
+  },
+  header: {
+    marginBottom: 12,
   },
   title: {
     fontSize: 31,
     fontFamily: 'BebasNeue_400Regular',
     color: '#0f172a',
   },
-  subtitle: {
-    marginTop: 4,
+  section: {
+    marginTop: 12,
+  },
+  sectionTitle: {
+    marginBottom: 8,
     fontSize: 16,
     fontFamily: 'BebasNeue_400Regular',
-    color: '#475569',
+    color: '#64748b',
   },
   card: {
-    marginTop: 16,
-    marginHorizontal: 16,
     borderRadius: 14,
     backgroundColor: '#fff',
-    paddingVertical: 8,
+    paddingVertical: 4,
     shadowColor: '#0f172a',
     shadowOpacity: 0.05,
     shadowRadius: 8,
@@ -92,6 +170,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 14,
     paddingVertical: 12,
+  },
+  rowPressed: {
+    opacity: 0.7,
   },
   rowIcon: {
     width: 34,
@@ -110,11 +191,10 @@ const styles = StyleSheet.create({
     fontFamily: 'BebasNeue_400Regular',
     color: '#0f172a',
   },
-  rowSubtitle: {
-    marginTop: 2,
-    fontSize: 14,
-    fontFamily: 'BebasNeue_400Regular',
-    color: '#64748b',
+  separator: {
+    height: 1,
+    marginLeft: 60,
+    backgroundColor: '#e2e8f0',
   },
 });
 
