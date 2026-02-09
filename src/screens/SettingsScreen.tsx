@@ -1,0 +1,201 @@
+import React, { useCallback } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { MaterialIcons } from '@expo/vector-icons';
+
+type SettingItem = {
+  id: string;
+  title: string;
+  icon: React.ComponentProps<typeof MaterialIcons>['name'];
+};
+
+type SettingSection = {
+  id: string;
+  title: string;
+  items: SettingItem[];
+};
+
+const SETTINGS_SECTIONS: SettingSection[] = [
+  {
+    id: 'general',
+    title: 'General',
+    items: [
+      {
+        id: 'preferences',
+        title: 'Preferences',
+        icon: 'tune',
+      },
+      {
+        id: 'notifications',
+        title: 'Notifications',
+        icon: 'notifications-none',
+      },
+    ],
+  },
+  {
+    id: 'feedback',
+    title: 'Feedback',
+    items: [
+      {
+        id: 'send-feedback',
+        title: 'Share Feedback',
+        icon: 'chat-bubble-outline',
+      },
+      {
+        id: 'report-issue',
+        title: 'Report Issue',
+        icon: 'bug-report',
+      },
+      {
+        id: 'rate-app',
+        title: 'Rate This App',
+        icon: 'star-border',
+      },
+      {
+        id: 'follow-us',
+        title: 'Follow Us',
+        icon: 'alternate-email',
+      },
+    ],
+  },
+  {
+    id: 'legal',
+    title: 'Legal',
+    items: [
+      {
+        id: 'privacy-data',
+        title: 'Privacy & Data',
+        icon: 'privacy-tip',
+      },
+      {
+        id: 'terms-of-service',
+        title: 'Terms of Service',
+        icon: 'description',
+      },
+    ],
+  },
+  {
+    id: 'danger-zone',
+    title: 'Danger Zone',
+    items: [
+      {
+        id: 'reset-progress',
+        title: 'Clear Workout History',
+        icon: 'restore',
+      },
+    ],
+  },
+];
+
+const SettingsScreen: React.FC = () => {
+  const handlePlaceholderPress = useCallback(() => {
+    // Placeholder for future settings actions.
+  }, []);
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Settings</Text>
+        </View>
+
+        {SETTINGS_SECTIONS.map((section) => (
+          <View key={section.id} style={styles.section}>
+            <Text style={styles.sectionTitle}>{section.title}</Text>
+            <View style={styles.card}>
+              {section.items.map((item, index) => (
+                <View key={item.id}>
+                  <Pressable
+                    onPress={handlePlaceholderPress}
+                    style={({ pressed }) => [styles.row, pressed ? styles.rowPressed : undefined]}
+                  >
+                    <View style={styles.rowIcon}>
+                      <MaterialIcons name={item.icon} size={20} color="#475569" />
+                    </View>
+                    <View style={styles.rowText}>
+                      <Text style={styles.rowTitle}>{item.title}</Text>
+                    </View>
+                    <MaterialIcons name="chevron-right" size={20} color="#94a3b8" />
+                  </Pressable>
+                  {index < section.items.length - 1 ? <View style={styles.separator} /> : null}
+                </View>
+              ))}
+            </View>
+          </View>
+        ))}
+      </ScrollView>
+    </SafeAreaView>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f8fafc',
+  },
+  content: {
+    paddingHorizontal: 16,
+    paddingTop: 30,
+    paddingBottom: 24,
+  },
+  header: {
+    marginBottom: 12,
+  },
+  title: {
+    fontSize: 31,
+    fontFamily: 'BebasNeue_400Regular',
+    color: '#0f172a',
+  },
+  section: {
+    marginTop: 12,
+  },
+  sectionTitle: {
+    marginBottom: 8,
+    fontSize: 16,
+    fontFamily: 'BebasNeue_400Regular',
+    color: '#64748b',
+  },
+  card: {
+    borderRadius: 14,
+    backgroundColor: '#fff',
+    paddingVertical: 4,
+    shadowColor: '#0f172a',
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  rowPressed: {
+    opacity: 0.7,
+  },
+  rowIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f1f5f9',
+  },
+  rowText: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  rowTitle: {
+    fontSize: 18,
+    fontFamily: 'BebasNeue_400Regular',
+    color: '#0f172a',
+  },
+  separator: {
+    height: 1,
+    marginLeft: 60,
+    backgroundColor: '#e2e8f0',
+  },
+});
+
+export default SettingsScreen;

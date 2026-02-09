@@ -10,6 +10,7 @@ import WorkoutCompleteScreen from '../screens/WorkoutCompleteScreen';
 import ScheduleEditorScreen from '../screens/ScheduleEditorScreen';
 import ScheduleListScreen from '../screens/ScheduleListScreen';
 import CalendarScreen from '../screens/CalendarScreen';
+import SettingsScreen from '../screens/SettingsScreen';
 import { MainTabParamList, RootStackParamList } from '../types/navigation';
 
 enableScreens();
@@ -34,14 +35,21 @@ const MainTabs: React.FC = () => (
       tabBarInactiveTintColor: '#94a3b8',
       tabBarShowLabel: false,
       tabBarIcon: ({ color, size }) => {
-        const icon: React.ComponentProps<typeof MaterialIcons>['name'] =
-          route.name === 'ScheduleList' ? 'list' : 'calendar-today';
+        let icon: React.ComponentProps<typeof MaterialIcons>['name'];
+        if (route.name === 'ScheduleList') {
+          icon = 'list';
+        } else if (route.name === 'Calendar') {
+          icon = 'calendar-today';
+        } else {
+          icon = 'settings';
+        }
         return <MaterialIcons name={icon} size={size} color={color} />;
       },
     })}
   >
     <Tab.Screen name="ScheduleList" component={ScheduleListScreen} options={{ title: 'Schedules' }} />
     <Tab.Screen name="Calendar" component={CalendarScreen} options={{ title: 'Calendar' }} />
+    <Tab.Screen name="Settings" component={SettingsScreen} options={{ title: 'Settings' }} />
   </Tab.Navigator>
 );
 

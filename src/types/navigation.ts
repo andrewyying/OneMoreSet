@@ -3,6 +3,7 @@ import { NavigatorScreenParams } from '@react-navigation/native';
 export type MainTabParamList = {
   ScheduleList: undefined;
   Calendar: undefined;
+  Settings: undefined;
 };
 
 export type RootStackParamList = {
