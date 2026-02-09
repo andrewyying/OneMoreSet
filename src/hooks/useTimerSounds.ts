@@ -59,8 +59,8 @@ export const useTimerSounds = () => {
         const [restResult, startResult, halfResult, lockResult] = await Promise.all([
           Audio.Sound.createAsync(require('../../assets/sounds/beep.wav')),
           Audio.Sound.createAsync(require('../../assets/sounds/beep-high.wav')),
-          Audio.Sound.createAsync(require('../../assets/sounds/tick.wav')),
-          Audio.Sound.createAsync(require('../../assets/sounds/lock.wav')),
+          Audio.Sound.createAsync(require('../../assets/sounds/double-beep.wav')),
+          Audio.Sound.createAsync(require('../../assets/sounds/pop.wav')),
         ]);
         if (isMounted) {
           restSoundRef.current = restResult.sound;

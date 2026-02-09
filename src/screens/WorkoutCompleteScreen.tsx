@@ -3,6 +3,7 @@ import { Animated, Easing, InteractionManager, StyleSheet, Text, View } from 're
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { MaterialIcons } from '@expo/vector-icons';
+import { Audio, InterruptionModeAndroid, InterruptionModeIOS } from 'expo-av';
 
 import PrimaryButton from '../components/PrimaryButton';
 import { RootStackParamList } from '../types/navigation';
@@ -29,6 +30,49 @@ const WorkoutCompleteScreen: React.FC<Props> = ({ navigation, route }) => {
       routes: [{ name: 'MainTabs', params: { screen: 'Calendar' } }],
     });
   }, [navigation]);
+
+  useEffect(() => {
+    let isMounted = true;
+    let completionSound: Audio.Sound | null = null;
+
+    const playCompletionChime = async () => {
+      try {
+        const iosMode = InterruptionModeIOS?.DuckOthers ?? 2;
+        const androidMode = InterruptionModeAndroid?.DuckOthers ?? 2;
+        await Audio.setAudioModeAsync({
+          playsInSilentModeIOS: true,
+          staysActiveInBackground: false,
+          interruptionModeIOS: iosMode,
+          interruptionModeAndroid: androidMode,
+          shouldDuckAndroid: true,
+        });
+        const { sound } = await Audio.Sound.createAsync(require('../../assets/sounds/complete-chime.wav'));
+        completionSound = sound;
+        if (!isMounted) {
+          await sound.unloadAsync();
+          completionSound = null;
+          return;
+        }
+        await sound.replayAsync();
+      } catch (error) {
+        console.warn('Failed to play completion chime', error);
+      }
+    };
+
+    void playCompletionChime();
+
+    return () => {
+      isMounted = false;
+      if (!completionSound) {
+        return;
+      }
+
+      void completionSound.unloadAsync().catch((error) => {
+        console.warn('Failed to unload completion chime', error);
+      });
+      completionSound = null;
+    };
+  }, []);
 
   useEffect(() => {
     const clearDoneButtonTimeout = () => {
