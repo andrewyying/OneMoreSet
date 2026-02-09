@@ -6,9 +6,12 @@ export type MainTabParamList = {
   Settings: undefined;
 };
 
+export type LegalDocumentType = 'privacy' | 'terms';
+
 export type RootStackParamList = {
   MainTabs: NavigatorScreenParams<MainTabParamList> | undefined;
   ScheduleEditor: { scheduleId: string; isNew?: boolean };
   Player: { scheduleId: string; startWithCountdown?: boolean };
   WorkoutComplete: { streakDays: number; celebrationMessage: string };
+  LegalDocument: { document: LegalDocumentType };
 };

@@ -1,7 +1,16 @@
 import React, { useCallback } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
+import { CompositeScreenProps } from '@react-navigation/native';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
+import { MainTabParamList, RootStackParamList } from '../types/navigation';
+
+type Props = CompositeScreenProps<
+  BottomTabScreenProps<MainTabParamList, 'Settings'>,
+  NativeStackScreenProps<RootStackParamList>
+>;
 
 type SettingItem = {
   id: string;
@@ -87,10 +96,20 @@ const SETTINGS_SECTIONS: SettingSection[] = [
   },
 ];
 
-const SettingsScreen: React.FC = () => {
-  const handlePlaceholderPress = useCallback(() => {
-    // Placeholder for future settings actions.
-  }, []);
+const SettingsScreen: React.FC<Props> = ({ navigation }) => {
+  const handleItemPress = useCallback(
+    (itemId: string) => {
+      if (itemId === 'privacy-data') {
+        navigation.navigate('LegalDocument', { document: 'privacy' });
+        return;
+      }
+
+      if (itemId === 'terms-of-service') {
+        navigation.navigate('LegalDocument', { document: 'terms' });
+      }
+    },
+    [navigation],
+  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -106,7 +125,7 @@ const SettingsScreen: React.FC = () => {
               {section.items.map((item, index) => (
                 <View key={item.id}>
                   <Pressable
-                    onPress={handlePlaceholderPress}
+                    onPress={() => handleItemPress(item.id)}
                     style={({ pressed }) => [styles.row, pressed ? styles.rowPressed : undefined]}
                   >
                     <View style={styles.rowIcon}>
