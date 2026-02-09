@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, type MutableRefObject } from 'react';
-import { Platform } from 'react-native';
 import { Audio } from 'expo-av';
 
 type UseBackgroundAudioOptions = {
@@ -27,10 +26,6 @@ export const useBackgroundAudio = ({ configureAudioMode }: UseBackgroundAudioOpt
   useEffect(() => {
     let isMounted = true;
 
-    if (Platform.OS !== 'ios') {
-      return undefined;
-    }
-
     const loadSound = async () => {
       try {
         const silenceResult = await Audio.Sound.createAsync(require('../../assets/sounds/silence.wav'));
@@ -54,10 +49,6 @@ export const useBackgroundAudio = ({ configureAudioMode }: UseBackgroundAudioOpt
   }, []);
 
   const startBackgroundAudio = useCallback(async () => {
-    if (Platform.OS !== 'ios') {
-      return;
-    }
-
     const sound = silenceSoundRef.current;
     if (!sound || backgroundAudioActiveRef.current) {
       return;

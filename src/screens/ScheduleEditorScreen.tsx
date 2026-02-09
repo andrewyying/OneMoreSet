@@ -211,7 +211,7 @@ const ScheduleEditorScreen: React.FC<Props> = ({ navigation, route }) => {
           style: 'cancel',
         },
         {
-          text: 'Discard',
+          text: 'Discard Changes',
           style: 'destructive',
           onPress: () => {
             allowLeaveRef.current = true;

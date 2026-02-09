@@ -27,8 +27,32 @@ const unloadSound = async (soundRef: MutableRefObject<Audio.Sound | null>) => {
   }
 };
 
+const prewarmSound = async (sound: Audio.Sound, label: string) => {
+  let shouldRestoreMute = false;
+  try {
+    await sound.setIsMutedAsync(true);
+    shouldRestoreMute = true;
+    await sound.replayAsync();
+    await sound.stopAsync();
+    await sound.setPositionAsync(0);
+  } catch (error) {
+    console.warn(`${label} prewarm failed`, error);
+  } finally {
+    if (!shouldRestoreMute) {
+      return;
+    }
+
+    try {
+      await sound.setIsMutedAsync(false);
+    } catch (error) {
+      console.warn(`${label} unmute failed`, error);
+    }
+  }
+};
+
 export const useTimerSounds = () => {
   const restSoundRef = useRef<Audio.Sound | null>(null);
+  const cuePrimeSoundRef = useRef<Audio.Sound | null>(null);
   const startSoundRef = useRef<Audio.Sound | null>(null);
   const halfSoundRef = useRef<Audio.Sound | null>(null);
   const lockSoundRef = useRef<Audio.Sound | null>(null);
@@ -56,20 +80,24 @@ export const useTimerSounds = () => {
     const loadSound = async () => {
       await configureAudioMode(false);
       try {
-        const [restResult, startResult, halfResult, lockResult] = await Promise.all([
+        const [restResult, cuePrimeResult, startResult, halfResult, lockResult] = await Promise.all([
+          Audio.Sound.createAsync(require('../../assets/sounds/beep.wav')),
           Audio.Sound.createAsync(require('../../assets/sounds/beep.wav')),
           Audio.Sound.createAsync(require('../../assets/sounds/beep-high.wav')),
           Audio.Sound.createAsync(require('../../assets/sounds/double-beep.wav')),
           Audio.Sound.createAsync(require('../../assets/sounds/pop.wav')),
         ]);
+        await prewarmSound(cuePrimeResult.sound, 'Cue prime sound');
         if (isMounted) {
           restSoundRef.current = restResult.sound;
+          cuePrimeSoundRef.current = cuePrimeResult.sound;
           startSoundRef.current = startResult.sound;
           halfSoundRef.current = halfResult.sound;
           lockSoundRef.current = lockResult.sound;
           setSoundsReady(true);
         } else {
           await restResult.sound.unloadAsync();
+          await cuePrimeResult.sound.unloadAsync();
           await startResult.sound.unloadAsync();
           await halfResult.sound.unloadAsync();
           await lockResult.sound.unloadAsync();
@@ -84,6 +112,7 @@ export const useTimerSounds = () => {
     return () => {
       isMounted = false;
       void unloadSound(restSoundRef);
+      void unloadSound(cuePrimeSoundRef);
       void unloadSound(startSoundRef);
       void unloadSound(halfSoundRef);
       void unloadSound(lockSoundRef);
@@ -91,6 +120,14 @@ export const useTimerSounds = () => {
   }, [configureAudioMode]);
 
   const playBeepSound = useCallback(() => playSound(restSoundRef.current, 'Cue sound'), []);
+  const primeCueSound = useCallback(async () => {
+    const sound = cuePrimeSoundRef.current;
+    if (!sound) {
+      return;
+    }
+
+    await prewarmSound(sound, 'Cue prime sound');
+  }, []);
   const playStartSound = useCallback(() => playSound(startSoundRef.current, 'Start sound'), []);
   const playHalfSound = useCallback(() => playSound(halfSoundRef.current, 'Half sound'), []);
   const playLockSound = useCallback(() => playSound(lockSoundRef.current, 'Rest start sound'), []);
@@ -98,6 +135,7 @@ export const useTimerSounds = () => {
   return {
     soundsReady,
     playBeepSound,
+    primeCueSound,
     playStartSound,
     playHalfSound,
     playLockSound,
