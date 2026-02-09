@@ -1,7 +1,17 @@
 import React, { useCallback } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
+import { CompositeScreenProps } from '@react-navigation/native';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
+import { useCompletions } from '../store/completions';
+import { MainTabParamList, RootStackParamList } from '../types/navigation';
+
+type Props = CompositeScreenProps<
+  BottomTabScreenProps<MainTabParamList, 'Settings'>,
+  NativeStackScreenProps<RootStackParamList>
+>;
 
 type SettingItem = {
   id: string;
@@ -87,10 +97,52 @@ const SETTINGS_SECTIONS: SettingSection[] = [
   },
 ];
 
-const SettingsScreen: React.FC = () => {
-  const handlePlaceholderPress = useCallback(() => {
-    // Placeholder for future settings actions.
-  }, []);
+const SettingsScreen: React.FC<Props> = ({ navigation }) => {
+  const { clearCompletions, completions } = useCompletions();
+
+  const handleConfirmClearWorkoutHistory = useCallback(() => {
+    clearCompletions();
+    Alert.alert('Done', 'All completed workout history has been removed.');
+  }, [clearCompletions]);
+
+  const handleClearWorkoutHistory = useCallback(() => {
+    if (completions.length === 0) {
+      Alert.alert('No history to clear', 'You do not have any completed workouts yet.');
+      return;
+    }
+
+    Alert.alert(
+      'Clear workout history?',
+      'This will permanently remove all completed workout history from this device. This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear History',
+          style: 'destructive',
+          onPress: handleConfirmClearWorkoutHistory,
+        },
+      ],
+    );
+  }, [completions.length, handleConfirmClearWorkoutHistory]);
+
+  const handleItemPress = useCallback(
+    (itemId: string) => {
+      if (itemId === 'privacy-data') {
+        navigation.navigate('LegalDocument', { document: 'privacy' });
+        return;
+      }
+
+      if (itemId === 'terms-of-service') {
+        navigation.navigate('LegalDocument', { document: 'terms' });
+        return;
+      }
+
+      if (itemId === 'reset-progress') {
+        handleClearWorkoutHistory();
+      }
+    },
+    [handleClearWorkoutHistory, navigation],
+  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -106,7 +158,7 @@ const SettingsScreen: React.FC = () => {
               {section.items.map((item, index) => (
                 <View key={item.id}>
                   <Pressable
-                    onPress={handlePlaceholderPress}
+                    onPress={() => handleItemPress(item.id)}
                     style={({ pressed }) => [styles.row, pressed ? styles.rowPressed : undefined]}
                   >
                     <View style={styles.rowIcon}>

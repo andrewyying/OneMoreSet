@@ -11,6 +11,7 @@ import ScheduleEditorScreen from '../screens/ScheduleEditorScreen';
 import ScheduleListScreen from '../screens/ScheduleListScreen';
 import CalendarScreen from '../screens/CalendarScreen';
 import SettingsScreen from '../screens/SettingsScreen';
+import LegalDocumentScreen from '../screens/LegalDocumentScreen';
 import { MainTabParamList, RootStackParamList } from '../types/navigation';
 
 enableScreens();
@@ -87,6 +88,15 @@ const AppNavigator: React.FC = () => {
             animation: 'slide_from_right',
             animationTypeForReplace: 'push',
           }}
+        />
+        <Stack.Screen
+          name="LegalDocument"
+          component={LegalDocumentScreen}
+          options={({ route }) => ({
+            title: route.params.document === 'privacy' ? 'Privacy & Data' : 'Terms of Service',
+            headerTintColor: '#0f172a',
+            headerBackButtonDisplayMode: 'minimal',
+          })}
         />
       </Stack.Navigator>
     </NavigationContainer>
