@@ -66,6 +66,7 @@ const PRIVACY_CONTENT: LegalDocumentContent = {
       heading: 'Your Choices',
       bullets: [
         'Edit or delete schedules at any time.',
+        'Use Settings > Danger Zone > Clear Workout History to remove all saved workout completion history.',
         'Delete individual workout history entries from the calendar history cards.',
         'Uninstall the app to remove local data from your device, subject to any device backups.',
       ],
