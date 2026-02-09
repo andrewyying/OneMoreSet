@@ -44,6 +44,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Player'>;
 const COUNTDOWN_CUE_SECONDS = 3;
 const HALF_CUE_WINDOW_MS = 2000;
 const TIMER_TICK_INTERVAL_MS = 33;
+const PRE_START_GET_READY_MS = 1500;
 const CELEBRATION_MESSAGES = [
   'Congratulations!',
   "You've done it!",
@@ -94,6 +95,7 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
   const {
     soundsReady,
     playBeepSound,
+    primeCueSound,
     playStartSound,
     playHalfSound,
     playLockSound,
@@ -116,12 +118,18 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
     playStartSound();
   }, [playStartSound]);
 
-  const { preStartCountdown } = usePreStartCountdown({
-    enabled: startWithCountdown,
-    phases,
+  const shouldStartPreStartCountdown =
+    startWithCountdown && phases.length > 0 && soundsReady && timerState.status === 'idle';
+  const isWaitingForCountdownAudio =
+    startWithCountdown && phases.length > 0 && !soundsReady && timerState.status === 'idle';
+  const { preStartCountdown, isPreStartActive } = usePreStartCountdown({
+    enabled: shouldStartPreStartCountdown,
+    onPrepare: primeCueSound,
     onTick: playBeepSound,
     onComplete: handleCountdownComplete,
+    getReadyDurationMs: PRE_START_GET_READY_MS,
   });
+  const shouldKeepAudioWarm = timerState.status === 'running';
 
   const triggerHaptic = useCallback(async () => {
     try {
@@ -228,15 +236,13 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
   }, [timerState.currentStepIndex]);
 
   useEffect(() => {
-    if (timerState.status === 'running') {
-      if (soundsReady) {
-        startBackgroundAudio();
-      }
+    if (soundsReady && shouldKeepAudioWarm) {
+      startBackgroundAudio();
       return;
     }
 
     stopBackgroundAudio();
-  }, [soundsReady, startBackgroundAudio, stopBackgroundAudio, timerState.status]);
+  }, [shouldKeepAudioWarm, soundsReady, startBackgroundAudio, stopBackgroundAudio]);
 
   useEffect(() => {
     return () => {
@@ -486,6 +492,7 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
   const disablePrev = !hasPhases || timerState.currentStepIndex === 0;
   const disablePrimary = !hasPhases;
   const disableNext = !hasPhases;
+  const showPreStartOverlay = isWaitingForCountdownAudio || shouldStartPreStartCountdown || isPreStartActive;
 
   if (!schedule) {
     return (
@@ -496,10 +503,12 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
     );
   }
 
-  if (preStartCountdown !== null) {
+  if (showPreStartOverlay) {
     return (
       <SafeAreaView style={styles.countdownContainer}>
-        <Text style={styles.countdownNumber}>{preStartCountdown}</Text>
+        <Text style={preStartCountdown === null ? styles.countdownReadyText : styles.countdownNumber}>
+          {preStartCountdown === null ? 'Get ready' : preStartCountdown}
+        </Text>
       </SafeAreaView>
     );
   }
@@ -639,6 +648,12 @@ const styles = StyleSheet.create({
     fontSize: 108,
     fontFamily: 'BebasNeue_400Regular',
     color: '#fff',
+  },
+  countdownReadyText: {
+    fontSize: 52,
+    fontFamily: 'BebasNeue_400Regular',
+    color: '#fff',
+    letterSpacing: 1,
   },
 });
 

@@ -1,54 +1,143 @@
-import { useEffect, useRef, useState } from 'react';
-
-import { Phase } from '../lib/time';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { InteractionManager } from 'react-native';
 
 type UsePreStartCountdownOptions = {
   enabled: boolean;
-  phases: Phase[];
+  onPrepare?: () => void | Promise<void>;
   onTick: () => void;
   onComplete: () => void;
+  getReadyDurationMs?: number;
 };
 
-export const usePreStartCountdown = ({ enabled, phases, onTick, onComplete }: UsePreStartCountdownOptions) => {
+const PRE_START_SECONDS = 3;
+const PRE_START_INTERVAL_MS = 1000;
+const PRE_START_HEARTBEAT_MS = 33;
+const DEFAULT_GET_READY_DURATION_MS = 1500;
+
+export const usePreStartCountdown = ({
+  enabled,
+  onPrepare,
+  onTick,
+  onComplete,
+  getReadyDurationMs = DEFAULT_GET_READY_DURATION_MS,
+}: UsePreStartCountdownOptions) => {
   const [preStartCountdown, setPreStartCountdown] = useState<number | null>(null);
-  const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const [isPreStartActive, setIsPreStartActive] = useState(false);
+  const countdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const countdownStartedRef = useRef(false);
+  const lastCountdownValueRef = useRef<number | null>(null);
+  const onPrepareRef = useRef(onPrepare);
+  const onTickRef = useRef(onTick);
+  const onCompleteRef = useRef(onComplete);
 
   useEffect(() => {
-    if (countdownStartedRef.current) {
+    onPrepareRef.current = onPrepare;
+  }, [onPrepare]);
+
+  useEffect(() => {
+    onTickRef.current = onTick;
+  }, [onTick]);
+
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
+
+  const clearCountdownInterval = useCallback(() => {
+    if (!countdownIntervalRef.current) {
       return;
     }
-    if (!enabled || phases.length === 0) {
+
+    clearInterval(countdownIntervalRef.current);
+    countdownIntervalRef.current = null;
+  }, []);
+
+  useEffect(() => {
+    if (!enabled) {
+      countdownStartedRef.current = false;
+      lastCountdownValueRef.current = null;
+      setPreStartCountdown(null);
+      setIsPreStartActive(false);
+      clearCountdownInterval();
+      return;
+    }
+
+    if (countdownStartedRef.current) {
       return;
     }
 
     countdownStartedRef.current = true;
-    let count = 3;
-    setPreStartCountdown(count);
-    onTick();
 
-    countdownIntervalRef.current = setInterval(() => {
-      count -= 1;
-      if (count <= 0) {
-        setPreStartCountdown(null);
-        onComplete();
-        if (countdownIntervalRef.current) {
-          clearInterval(countdownIntervalRef.current);
-          countdownIntervalRef.current = null;
+    let isCancelled = false;
+    lastCountdownValueRef.current = null;
+    setPreStartCountdown(null);
+    setIsPreStartActive(true);
+    clearCountdownInterval();
+
+    const interactionTask = InteractionManager.runAfterInteractions(() => {
+      const startCountdown = async () => {
+        if (isCancelled) {
+          return;
         }
-      } else {
-        setPreStartCountdown(count);
-        onTick();
-      }
-    }, 1000);
+
+        try {
+          await onPrepareRef.current?.();
+        } catch (error) {
+          console.warn('Pre-start prepare failed', error);
+        }
+
+        if (isCancelled) {
+          return;
+        }
+
+        const countdownStartAtMs = Date.now() + getReadyDurationMs;
+        const countdownEndAtMs = countdownStartAtMs + PRE_START_SECONDS * PRE_START_INTERVAL_MS;
+
+        const tick = () => {
+          if (isCancelled) {
+            return;
+          }
+
+          const now = Date.now();
+          if (now < countdownStartAtMs) {
+            if (lastCountdownValueRef.current !== null) {
+              lastCountdownValueRef.current = null;
+              setPreStartCountdown(null);
+            }
+            return;
+          }
+
+          const remainingMs = countdownEndAtMs - now;
+          if (remainingMs <= 0) {
+            clearCountdownInterval();
+            setPreStartCountdown(null);
+            setIsPreStartActive(false);
+            onCompleteRef.current();
+            return;
+          }
+
+          const countdownValue = Math.max(1, Math.ceil(remainingMs / PRE_START_INTERVAL_MS));
+          if (lastCountdownValueRef.current === countdownValue) {
+            return;
+          }
+
+          lastCountdownValueRef.current = countdownValue;
+          onTickRef.current();
+          setPreStartCountdown(countdownValue);
+        };
+
+        tick();
+        countdownIntervalRef.current = setInterval(tick, PRE_START_HEARTBEAT_MS);
+      };
+
+      void startCountdown();
+    });
 
     return () => {
-      if (countdownIntervalRef.current) {
-        clearInterval(countdownIntervalRef.current);
-        countdownIntervalRef.current = null;
-      }
+      isCancelled = true;
+      interactionTask.cancel();
+      clearCountdownInterval();
     };
-  }, [enabled, onComplete, onTick, phases]);
+  }, [clearCountdownInterval, enabled, getReadyDurationMs]);
 
-  return { preStartCountdown };
+  return { preStartCountdown, isPreStartActive };
 };
