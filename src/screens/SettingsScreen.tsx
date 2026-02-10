@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import { CompositeScreenProps } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -125,6 +125,21 @@ const SettingsScreen: React.FC<Props> = ({ navigation }) => {
     );
   }, [completions.length, handleConfirmClearWorkoutHistory]);
 
+  const handleRateApp = useCallback(() => {
+    Alert.alert(
+      'Not on App Store Yet',
+      'Thanks for your support. This app is not on the App Store yet.',
+    );
+  }, []);
+
+  const handleFollowUs = useCallback(() => {
+    const profileUrl = 'https://x.com/andrewyying';
+
+    void Linking.openURL(profileUrl).catch(() => {
+      Alert.alert('Unable to Open Link', 'Please try again later.');
+    });
+  }, []);
+
   const handleItemPress = useCallback(
     (itemId: string) => {
       if (itemId === 'privacy-data') {
@@ -137,11 +152,31 @@ const SettingsScreen: React.FC<Props> = ({ navigation }) => {
         return;
       }
 
+      if (itemId === 'send-feedback') {
+        navigation.navigate('FeedbackForm');
+        return;
+      }
+
+      if (itemId === 'report-issue') {
+        navigation.navigate('ReportIssueForm');
+        return;
+      }
+
+      if (itemId === 'rate-app') {
+        handleRateApp();
+        return;
+      }
+
+      if (itemId === 'follow-us') {
+        handleFollowUs();
+        return;
+      }
+
       if (itemId === 'reset-progress') {
         handleClearWorkoutHistory();
       }
     },
-    [handleClearWorkoutHistory, navigation],
+    [handleClearWorkoutHistory, handleFollowUs, handleRateApp, navigation],
   );
 
   return (

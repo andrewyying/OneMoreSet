@@ -84,7 +84,7 @@ export const useTimerSounds = () => {
           Audio.Sound.createAsync(require('../../assets/sounds/beep.wav')),
           Audio.Sound.createAsync(require('../../assets/sounds/beep.wav')),
           Audio.Sound.createAsync(require('../../assets/sounds/beep-high.wav')),
-          Audio.Sound.createAsync(require('../../assets/sounds/double-beep.wav')),
+          Audio.Sound.createAsync(require('../../assets/sounds/double-beep.norm.wav')),
           Audio.Sound.createAsync(require('../../assets/sounds/pop.wav')),
         ]);
         await prewarmSound(cuePrimeResult.sound, 'Cue prime sound');

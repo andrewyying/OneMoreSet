@@ -14,4 +14,6 @@ export type RootStackParamList = {
   Player: { scheduleId: string; startWithCountdown?: boolean };
   WorkoutComplete: { streakDays: number; celebrationMessage: string };
   LegalDocument: { document: LegalDocumentType };
+  FeedbackForm: undefined;
+  ReportIssueForm: undefined;
 };
