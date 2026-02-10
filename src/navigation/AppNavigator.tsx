@@ -12,6 +12,8 @@ import ScheduleListScreen from '../screens/ScheduleListScreen';
 import CalendarScreen from '../screens/CalendarScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import LegalDocumentScreen from '../screens/LegalDocumentScreen';
+import FeedbackFormScreen from '../screens/FeedbackFormScreen';
+import ReportIssueFormScreen from '../screens/ReportIssueFormScreen';
 import { MainTabParamList, RootStackParamList } from '../types/navigation';
 
 enableScreens();
@@ -97,6 +99,24 @@ const AppNavigator: React.FC = () => {
             headerTintColor: '#0f172a',
             headerBackButtonDisplayMode: 'minimal',
           })}
+        />
+        <Stack.Screen
+          name="FeedbackForm"
+          component={FeedbackFormScreen}
+          options={{
+            title: 'Share Feedback',
+            headerTintColor: '#0f172a',
+            headerBackButtonDisplayMode: 'minimal',
+          }}
+        />
+        <Stack.Screen
+          name="ReportIssueForm"
+          component={ReportIssueFormScreen}
+          options={{
+            title: 'Report Issue',
+            headerTintColor: '#0f172a',
+            headerBackButtonDisplayMode: 'minimal',
+          }}
         />
       </Stack.Navigator>
     </NavigationContainer>

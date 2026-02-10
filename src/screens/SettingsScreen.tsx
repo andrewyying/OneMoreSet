@@ -152,6 +152,16 @@ const SettingsScreen: React.FC<Props> = ({ navigation }) => {
         return;
       }
 
+      if (itemId === 'send-feedback') {
+        navigation.navigate('FeedbackForm');
+        return;
+      }
+
+      if (itemId === 'report-issue') {
+        navigation.navigate('ReportIssueForm');
+        return;
+      }
+
       if (itemId === 'rate-app') {
         handleRateApp();
         return;
