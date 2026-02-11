@@ -14,6 +14,7 @@ import SettingsScreen from '../screens/SettingsScreen';
 import LegalDocumentScreen from '../screens/LegalDocumentScreen';
 import FeedbackFormScreen from '../screens/FeedbackFormScreen';
 import ReportIssueFormScreen from '../screens/ReportIssueFormScreen';
+import NotificationSettingsScreen from '../screens/NotificationSettingsScreen';
 import { MainTabParamList, RootStackParamList } from '../types/navigation';
 
 enableScreens();
@@ -114,6 +115,15 @@ const AppNavigator: React.FC = () => {
           component={ReportIssueFormScreen}
           options={{
             title: 'Report Issue',
+            headerTintColor: '#0f172a',
+            headerBackButtonDisplayMode: 'minimal',
+          }}
+        />
+        <Stack.Screen
+          name="NotificationSettings"
+          component={NotificationSettingsScreen}
+          options={{
+            title: 'Notifications',
             headerTintColor: '#0f172a',
             headerBackButtonDisplayMode: 'minimal',
           }}
