@@ -16,4 +16,5 @@ export type RootStackParamList = {
   LegalDocument: { document: LegalDocumentType };
   FeedbackForm: undefined;
   ReportIssueForm: undefined;
+  NotificationSettings: undefined;
 };
