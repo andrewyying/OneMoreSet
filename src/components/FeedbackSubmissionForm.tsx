@@ -37,10 +37,10 @@ const MAX_IMAGE_BYTES = 3 * 1024 * 1024;
 const MAX_IMAGES = 5;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const ISSUE_DETAILS_HELP_ITEMS = [
-  'What you were trying to do',
-  'What actually happened',
-  'What you expected to happen',
-  'Any error messages you saw',
+  ' What you were trying to do',
+  ' What actually happened',
+  ' What you expected to happen',
+  ' Any error messages you saw',
 ];
 
 const getMessageLabel = (type: FeedbackRequestType): string =>

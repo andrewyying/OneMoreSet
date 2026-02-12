@@ -6,6 +6,12 @@ import { Phase, formatSeconds } from '../lib/time';
 import { TimerState } from '../lib/timer';
 
 type ExercisePhase = Phase & { phaseIndex: number };
+type ExerciseGroup = {
+  id: string;
+  title: string;
+  workoutOrder: number;
+  phases: ExercisePhase[];
+};
 
 type ExerciseModalProps = {
   visible: boolean;
@@ -17,63 +23,38 @@ type ExerciseModalProps = {
 
 const ExerciseModal: React.FC<ExerciseModalProps> = React.memo(
   ({ visible, onClose, exercisePhases, timerState, onSelectPhase }) => {
-    const exerciseDisplayMeta = useMemo(() => {
-      const displayByPhaseIndex: Record<number, { title: string; repeatProgress: string | null }> = {};
+    const exerciseGroups = useMemo<ExerciseGroup[]>(() => {
       const repeatLabelPattern = /^(.*)\s\(x(\d+)\)$/;
+      const groups: Array<{ id: string; title: string; phases: ExercisePhase[] }> = [];
 
       for (let i = 0; i < exercisePhases.length; i += 1) {
         const phase = exercisePhases[i];
         const match = phase.label.match(repeatLabelPattern);
-        if (!match) {
-          displayByPhaseIndex[phase.phaseIndex] = {
-            title: phase.label,
-            repeatProgress: null,
-          };
+        const title = match ? match[1] : phase.label;
+        const repeatNumber = match ? Number.parseInt(match[2], 10) : null;
+        const previousGroup = groups[groups.length - 1];
+        const canAppendToGroup =
+          previousGroup !== undefined &&
+          repeatNumber !== null &&
+          repeatNumber === previousGroup.phases.length + 1 &&
+          previousGroup.title === title;
+
+        if (canAppendToGroup) {
+          previousGroup.phases.push(phase);
           continue;
         }
 
-        const baseTitle = match[1];
-        const firstRep = Number.parseInt(match[2], 10);
-        if (firstRep <= 0) {
-          displayByPhaseIndex[phase.phaseIndex] = {
-            title: phase.label,
-            repeatProgress: null,
-          };
-          continue;
-        }
-
-        let groupEnd = i;
-        let expectedRep = firstRep + 1;
-        while (groupEnd + 1 < exercisePhases.length) {
-          const next = exercisePhases[groupEnd + 1];
-          const nextMatch = next.label.match(repeatLabelPattern);
-          if (!nextMatch) {
-            break;
-          }
-          const nextBaseTitle = nextMatch[1];
-          const nextRep = Number.parseInt(nextMatch[2], 10);
-          if (nextBaseTitle !== baseTitle || nextRep !== expectedRep) {
-            break;
-          }
-          groupEnd += 1;
-          expectedRep += 1;
-        }
-
-        const totalReps = expectedRep - 1;
-        for (let groupIndex = i; groupIndex <= groupEnd; groupIndex += 1) {
-          const groupPhase = exercisePhases[groupIndex];
-          const groupMatch = groupPhase.label.match(repeatLabelPattern);
-          const currentRep = groupMatch ? Number.parseInt(groupMatch[2], 10) : 1;
-          displayByPhaseIndex[groupPhase.phaseIndex] = {
-            title: baseTitle,
-            repeatProgress: `${currentRep}/${totalReps}`,
-          };
-        }
-
-        i = groupEnd;
+        groups.push({
+          id: `${title}-${phase.phaseIndex}`,
+          title,
+          phases: [phase],
+        });
       }
 
-      return displayByPhaseIndex;
+      return groups.map((group, index) => ({
+        ...group,
+        workoutOrder: index + 1,
+      }));
     }, [exercisePhases]);
 
     const handleSelectPhase = useCallback(
@@ -84,36 +65,41 @@ const ExerciseModal: React.FC<ExerciseModalProps> = React.memo(
       [onClose, onSelectPhase],
     );
 
-    const renderExerciseItem = useCallback(
-      ({ item }: { item: ExercisePhase }) => {
-        const isDone = item.phaseIndex < timerState.currentStepIndex || timerState.status === 'finished';
-        const isCurrent = item.phaseIndex === timerState.currentStepIndex;
-        const display = exerciseDisplayMeta[item.phaseIndex] ?? { title: item.label, repeatProgress: null };
-        return (
-          <TouchableOpacity
-            style={styles.exerciseRow}
-            activeOpacity={0.7}
-            onPress={() => handleSelectPhase(item.phaseIndex)}
-          >
-            <View style={styles.exerciseText}>
-              <Text style={styles.exerciseLabel} numberOfLines={1}>
-                {display.title}
-                {' '}
-                {display.repeatProgress ? <Text style={styles.exerciseRepeatInline}> {display.repeatProgress}</Text> : null}
-              </Text>
-              <Text style={styles.exerciseMeta}>{formatSeconds(item.durationSec)}</Text>
-            </View>
-            <View style={styles.statusIconContainer}>
-              {isDone ? (
-                <MaterialIcons name="check-circle" size={22} color="green" />
-              ) : isCurrent ? (
-                <MaterialIcons name="radio-button-checked" size={22} color="#64748b" opacity={0.7} />
-              ) : null}
-            </View>
-          </TouchableOpacity>
-        );
-      },
-      [exerciseDisplayMeta, handleSelectPhase, timerState.currentStepIndex, timerState.status],
+    const renderExerciseGroup = useCallback(
+      ({ item }: { item: ExerciseGroup }) => (
+        <View style={styles.exerciseGroup}>
+          <Text style={styles.exerciseGroupTitle} numberOfLines={1}>
+            #{item.workoutOrder} {item.title}
+          </Text>
+          {item.phases.map((phase, setIndex) => {
+            const isDone = phase.phaseIndex < timerState.currentStepIndex || timerState.status === 'finished';
+            const isCurrent = phase.phaseIndex === timerState.currentStepIndex;
+            const setLabel = `${setIndex + 1}/${item.phases.length}`;
+
+            return (
+              <TouchableOpacity
+                key={phase.phaseIndex}
+                style={styles.setRow}
+                activeOpacity={0.7}
+                onPress={() => handleSelectPhase(phase.phaseIndex)}
+              >
+                <View style={styles.setText}>
+                  <Text style={styles.setLabel}>{setLabel}</Text>
+                  <Text style={styles.exerciseMeta}>{formatSeconds(phase.durationSec)}</Text>
+                </View>
+                <View style={styles.statusIconContainer}>
+                  {isDone ? (
+                    <MaterialIcons name="check-circle" size={22} color="green" />
+                  ) : isCurrent ? (
+                    <MaterialIcons name="radio-button-checked" size={22} color="#64748b" opacity={0.7} />
+                  ) : null}
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      ),
+      [handleSelectPhase, timerState.currentStepIndex, timerState.status],
     );
 
     return (
@@ -123,9 +109,9 @@ const ExerciseModal: React.FC<ExerciseModalProps> = React.memo(
             <View style={styles.sheetHandle} />
             <Text style={styles.sheetTitle}>Exercises</Text>
             <FlatList
-              data={exercisePhases}
-              keyExtractor={(item) => `${item.phaseIndex}`}
-              renderItem={renderExerciseItem}
+              data={exerciseGroups}
+              keyExtractor={(item) => item.id}
+              renderItem={renderExerciseGroup}
               ItemSeparatorComponent={ExerciseSeparator}
               ListEmptyComponent={<Text style={styles.emptyExercises}>No exercises in this workout.</Text>}
             />
@@ -167,30 +153,37 @@ const styles = StyleSheet.create({
     color: '#0f172a',
     marginBottom: 12,
   },
-  exerciseRow: {
+  exerciseGroup: {
+    paddingVertical: 8,
+  },
+  exerciseGroupTitle: {
+    fontSize: 20,
+    fontFamily: 'BebasNeue_400Regular',
+    color: '#0f172a',
+  },
+  setRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 8,
+    marginLeft: 10,
+    paddingLeft: 14,
+    paddingVertical: 6,
+    borderLeftWidth: 1,
+    borderLeftColor: '#e2e8f0',
   },
-  exerciseText: {
+  setText: {
     flex: 1,
     marginRight: 12,
   },
-  exerciseLabel: {
-    fontSize: 18,
+  setLabel: {
+    fontSize: 17,
     fontFamily: 'BebasNeue_400Regular',
-    color: '#0f172a',
+    color: '#475569',
   },
   exerciseMeta: {
     fontFamily: 'BebasNeue_400Regular',
     color: '#475569',
     marginTop: 2,
-  },
-  exerciseRepeatInline: {
-    fontFamily: 'BebasNeue_400Regular',
-    color: '#64748b',
-    opacity: 0.7,
   },
   statusIconContainer: {
     width: 24,
