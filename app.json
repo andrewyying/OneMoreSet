@@ -34,6 +34,12 @@
     "plugins": [
       "expo-notifications",
       "expo-live-activity",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow OneMoreSet to access your photos so you can attach bug screenshots."
+        }
+      ],
       "./plugins/withLiveActivityFrequentUpdates"
     ],
     "web": {
