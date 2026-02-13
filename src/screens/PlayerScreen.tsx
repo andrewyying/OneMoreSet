@@ -57,7 +57,7 @@ const CELEBRATION_MESSAGES = [
 ];
 
 const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
-  const { scheduleId, startWithCountdown = false } = route.params;
+  const { scheduleId, startCountdownSeconds = 3, autoStart = true } = route.params;
   const { schedules } = useSchedules();
   const { completions, recordCompletion } = useCompletions();
   const schedule = schedules.find((item) => item.id === scheduleId);
@@ -91,6 +91,7 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
   const [showExercises, setShowExercises] = useState(false);
   const completionRecordedRef = useRef(false);
   const completionRoutedRef = useRef(false);
+  const autoStartTriggeredRef = useRef(false);
 
   const {
     soundsReady,
@@ -118,12 +119,14 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
     playStartSound();
   }, [playStartSound]);
 
+  const shouldUseCountdown = autoStart && startCountdownSeconds > 0;
   const shouldStartPreStartCountdown =
-    startWithCountdown && phases.length > 0 && soundsReady && timerState.status === 'idle';
+    shouldUseCountdown && phases.length > 0 && soundsReady && timerState.status === 'idle';
   const isWaitingForCountdownAudio =
-    startWithCountdown && phases.length > 0 && !soundsReady && timerState.status === 'idle';
+    shouldUseCountdown && phases.length > 0 && !soundsReady && timerState.status === 'idle';
   const { preStartCountdown, isPreStartActive } = usePreStartCountdown({
     enabled: shouldStartPreStartCountdown,
+    countdownSeconds: startCountdownSeconds,
     onPrepare: primeCueSound,
     onTick: playBeepSound,
     onComplete: handleCountdownComplete,
@@ -195,6 +198,24 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
 
     return () => clearInterval(interval);
   }, [timerState.status]);
+
+  useEffect(() => {
+    if (!autoStart || startCountdownSeconds > 0 || timerState.status !== 'idle' || phases.length === 0) {
+      return;
+    }
+
+    if (autoStartTriggeredRef.current) {
+      return;
+    }
+
+    autoStartTriggeredRef.current = true;
+    const now = Date.now();
+    const activePhases = phasesRef.current;
+    setTimerState(startTimer(activePhases, now));
+    if (activePhases[0]?.type === 'exercise') {
+      playStartSound();
+    }
+  }, [autoStart, phases.length, playStartSound, startCountdownSeconds, timerState.status]);
 
   useEffect(() => {
     if (!schedule) {

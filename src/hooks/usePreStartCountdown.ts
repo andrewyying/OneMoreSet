@@ -3,19 +3,21 @@ import { InteractionManager } from 'react-native';
 
 type UsePreStartCountdownOptions = {
   enabled: boolean;
+  countdownSeconds?: number;
   onPrepare?: () => void | Promise<void>;
   onTick: () => void;
   onComplete: () => void;
   getReadyDurationMs?: number;
 };
 
-const PRE_START_SECONDS = 3;
 const PRE_START_INTERVAL_MS = 1000;
 const PRE_START_HEARTBEAT_MS = 33;
 const DEFAULT_GET_READY_DURATION_MS = 1500;
+const DEFAULT_PRE_START_SECONDS = 3;
 
 export const usePreStartCountdown = ({
   enabled,
+  countdownSeconds = DEFAULT_PRE_START_SECONDS,
   onPrepare,
   onTick,
   onComplete,
@@ -89,8 +91,9 @@ export const usePreStartCountdown = ({
           return;
         }
 
+        const resolvedCountdownSeconds = Math.max(1, Math.floor(countdownSeconds));
         const countdownStartAtMs = Date.now() + getReadyDurationMs;
-        const countdownEndAtMs = countdownStartAtMs + PRE_START_SECONDS * PRE_START_INTERVAL_MS;
+        const countdownEndAtMs = countdownStartAtMs + resolvedCountdownSeconds * PRE_START_INTERVAL_MS;
 
         const tick = () => {
           if (isCancelled) {
@@ -137,7 +140,7 @@ export const usePreStartCountdown = ({
       interactionTask.cancel();
       clearCountdownInterval();
     };
-  }, [clearCountdownInterval, enabled, getReadyDurationMs]);
+  }, [clearCountdownInterval, countdownSeconds, enabled, getReadyDurationMs]);
 
   return { preStartCountdown, isPreStartActive };
 };

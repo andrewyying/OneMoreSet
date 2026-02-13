@@ -7,14 +7,16 @@ export type MainTabParamList = {
 };
 
 export type LegalDocumentType = 'privacy' | 'terms';
+export type StartCountdownSeconds = 0 | 3 | 5;
 
 export type RootStackParamList = {
   MainTabs: NavigatorScreenParams<MainTabParamList> | undefined;
   ScheduleEditor: { scheduleId: string; isNew?: boolean };
-  Player: { scheduleId: string; startWithCountdown?: boolean };
+  Player: { scheduleId: string; startCountdownSeconds?: StartCountdownSeconds; autoStart?: boolean };
   WorkoutComplete: { streakDays: number; celebrationMessage: string };
   LegalDocument: { document: LegalDocumentType };
   FeedbackForm: undefined;
   ReportIssueForm: undefined;
   NotificationSettings: undefined;
+  PreferenceSettings: undefined;
 };
