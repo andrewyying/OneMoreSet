@@ -91,7 +91,7 @@ export const usePreStartCountdown = ({
           return;
         }
 
-        const resolvedCountdownSeconds = Math.max(1, Math.floor(countdownSeconds));
+        const resolvedCountdownSeconds = Math.max(0, Math.floor(countdownSeconds));
         const countdownStartAtMs = Date.now() + getReadyDurationMs;
         const countdownEndAtMs = countdownStartAtMs + resolvedCountdownSeconds * PRE_START_INTERVAL_MS;
 
