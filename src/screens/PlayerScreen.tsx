@@ -57,7 +57,7 @@ const CELEBRATION_MESSAGES = [
 ];
 
 const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
-  const { scheduleId, startWithCountdown = false } = route.params;
+  const { scheduleId, startCountdownSeconds = 3, autoStart = true } = route.params;
   const { schedules } = useSchedules();
   const { completions, recordCompletion } = useCompletions();
   const schedule = schedules.find((item) => item.id === scheduleId);
@@ -119,11 +119,12 @@ const PlayerScreen: React.FC<Props> = ({ navigation, route }) => {
   }, [playStartSound]);
 
   const shouldStartPreStartCountdown =
-    startWithCountdown && phases.length > 0 && soundsReady && timerState.status === 'idle';
+    autoStart && phases.length > 0 && soundsReady && timerState.status === 'idle';
   const isWaitingForCountdownAudio =
-    startWithCountdown && phases.length > 0 && !soundsReady && timerState.status === 'idle';
+    autoStart && phases.length > 0 && !soundsReady && timerState.status === 'idle';
   const { preStartCountdown, isPreStartActive } = usePreStartCountdown({
     enabled: shouldStartPreStartCountdown,
+    countdownSeconds: startCountdownSeconds,
     onPrepare: primeCueSound,
     onTick: playBeepSound,
     onComplete: handleCountdownComplete,

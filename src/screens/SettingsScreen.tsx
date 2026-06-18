@@ -162,6 +162,11 @@ const SettingsScreen: React.FC<Props> = ({ navigation }) => {
         return;
       }
 
+      if (itemId === 'preferences') {
+        navigation.navigate('PreferenceSettings');
+        return;
+      }
+
       if (itemId === 'notifications') {
         navigation.navigate('NotificationSettings');
         return;

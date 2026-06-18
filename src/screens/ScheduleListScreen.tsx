@@ -16,6 +16,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 
 import PrimaryButton from '../components/PrimaryButton';
 import { generateId } from '../lib/ids';
+import { DEFAULT_PREFERENCES, loadPreferences } from '../lib/preferences';
 import { formatSeconds, getExerciseCount, getTotalDuration } from '../lib/time';
 import { useSchedules } from '../store/schedules';
 import { MainTabParamList, RootStackParamList } from '../types/navigation';
@@ -90,7 +91,23 @@ const ScheduleListScreen: React.FC<Props> = ({ navigation }) => {
 
   const handleStartSchedule = useCallback(
     (id: string) => {
-      navigation.navigate('Player', { scheduleId: id, startWithCountdown: true });
+      void loadPreferences()
+        .then((preferences) => {
+          const countdownSeconds = preferences.startCountdownSeconds;
+          navigation.navigate('Player', {
+            scheduleId: id,
+            startCountdownSeconds: countdownSeconds,
+            autoStart: true,
+          });
+        })
+        .catch((error) => {
+          console.warn('Failed to load preferences before starting workout', error);
+          navigation.navigate('Player', {
+            scheduleId: id,
+            startCountdownSeconds: DEFAULT_PREFERENCES.startCountdownSeconds,
+            autoStart: true,
+          });
+        });
     },
     [navigation],
   );

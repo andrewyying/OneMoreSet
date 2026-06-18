@@ -42,3 +42,9 @@ yarn-error.*
 
 # IDEs
 .idea/
+
+.agents/
+.claude/
+combined.log
+error.log
+skills-lock.json
