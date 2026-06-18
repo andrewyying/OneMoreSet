@@ -4,7 +4,7 @@ import { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import { CompositeScreenProps } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { MaterialIcons } from '@expo/vector-icons';
+import { FontAwesome6, MaterialIcons } from '@expo/vector-icons';
 import { useCompletions } from '../store/completions';
 import { MainTabParamList, RootStackParamList } from '../types/navigation';
 
@@ -16,7 +16,8 @@ type Props = CompositeScreenProps<
 type SettingItem = {
   id: string;
   title: string;
-  icon: React.ComponentProps<typeof MaterialIcons>['name'];
+  icon: string;
+  iconFamily?: 'MaterialIcons' | 'FontAwesome6';
 };
 
 type SettingSection = {
@@ -63,8 +64,9 @@ const SETTINGS_SECTIONS: SettingSection[] = [
       },
       {
         id: 'follow-us',
-        title: 'Follow Us',
-        icon: 'alternate-email',
+        title: 'Follow X',
+        icon: 'x-twitter',
+        iconFamily: 'FontAwesome6',
       },
     ],
   },
@@ -207,7 +209,11 @@ const SettingsScreen: React.FC<Props> = ({ navigation }) => {
                     style={({ pressed }) => [styles.row, pressed ? styles.rowPressed : undefined]}
                   >
                     <View style={styles.rowIcon}>
-                      <MaterialIcons name={item.icon} size={20} color="#475569" />
+                      {item.iconFamily === 'FontAwesome6' ? (
+                        <FontAwesome6 name={item.icon} size={18} color="#475569" />
+                      ) : (
+                        <MaterialIcons name={item.icon as React.ComponentProps<typeof MaterialIcons>['name']} size={20} color="#475569" />
+                      )}
                     </View>
                     <View style={styles.rowText}>
                       <Text style={styles.rowTitle}>{item.title}</Text>
