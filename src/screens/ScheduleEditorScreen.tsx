@@ -242,8 +242,8 @@ const ScheduleEditorScreen: React.FC<Props> = ({ navigation, route }) => {
       headerRight: isNewSchedule
         ? undefined
         : () => (
-          <Pressable onPress={handleDeleteSchedule} style={styles.deleteButton}>
-            <Text style={styles.deleteButtonText}>Delete</Text>
+          <Pressable onPress={handleDeleteSchedule} hitSlop={8} style={styles.deleteButton}>
+            <MaterialIcons name="delete-outline" size={22} color="#b91c1c" />
           </Pressable>
         ),
       title: isNewSchedule ? 'Create Workout' : 'Edit Workout',
@@ -465,15 +465,8 @@ const styles = StyleSheet.create({
     height: 32,
   },
   deleteButton: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    padding: 6,
     borderRadius: 8,
-    backgroundColor: '#b91c1c',
-  },
-  deleteButtonText: {
-    fontSize: 16,
-    fontFamily: 'BebasNeue_400Regular',
-    color: '#fff',
   },
   backButton: {
     marginTop: 12,
