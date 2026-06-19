@@ -1,7 +1,6 @@
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+﻿import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import {
   FlatList,
-  InteractionManager,
   ListRenderItem,
   Pressable,
   ScrollView,
@@ -33,81 +32,6 @@ const ROW_HEIGHT = DAY_CELL_HEIGHT + DAY_CELL_MARGIN_BOTTOM;
 
 const getCompletionCount = (list: WorkoutCompletion[]) => list.length;
 
-type DayCellProps = {
-  cellKey: string;
-  date: Date | null;
-  isSelected: boolean;
-  isToday: boolean;
-  hasCompletion: boolean;
-  onSelect: (date: Date) => void;
-};
-
-const DayCell: React.FC<DayCellProps> = React.memo(
-  ({ date, isSelected, isToday, hasCompletion, onSelect }) => {
-    if (!date) {
-      return <View style={[styles.dayCell, styles.dayCellEmpty]} />;
-    }
-
-    const handlePress = () => onSelect(date);
-
-    return (
-      <Pressable onPress={handlePress} style={styles.dayCell}>
-        {({ pressed }) => (
-          <View
-            style={[
-              styles.dayBubble,
-              hasCompletion && styles.dayBubbleHighlighted,
-              isSelected && styles.dayBubbleSelected,
-              isToday && styles.dayBubbleToday,
-              pressed && styles.dayBubblePressed,
-            ]}
-          >
-            <Text
-              style={[
-                styles.dayText,
-                hasCompletion && styles.dayTextHighlighted,
-                isSelected && styles.dayTextSelected,
-              ]}
-            >
-              {date.getDate()}
-            </Text>
-          </View>
-        )}
-      </Pressable>
-    );
-  },
-);
-
-type CalendarPageProps = {
-  cells: CalendarCell[];
-  selectedKey: string;
-  todayKey: string;
-  completionsByDay: Map<string, WorkoutCompletion[]>;
-  onSelectDate: (date: Date) => void;
-  style: object[];
-};
-
-const CalendarPage: React.FC<CalendarPageProps> = React.memo(
-  ({ cells, selectedKey, todayKey, completionsByDay, onSelectDate, style }) => (
-    <View style={style}>
-      {cells.map((cell) => {
-        const dayKey = cell.date ? toDateKey(cell.date) : '';
-        return (
-          <DayCell
-            key={cell.key}
-            cellKey={cell.key}
-            date={cell.date}
-            isSelected={dayKey === selectedKey}
-            isToday={dayKey === todayKey}
-            hasCompletion={dayKey !== '' && completionsByDay.has(dayKey)}
-            onSelect={onSelectDate}
-          />
-        );
-      })}
-    </View>
-  ),
-);
-
 const CalendarScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
   const { completions, status, error, deleteCompletion } = useCompletions();
@@ -128,7 +52,6 @@ const CalendarScreen: React.FC = () => {
     handleSelectDate,
   } = useCalendar(completions);
   const gridScrollRef = useRef<ScrollView | null>(null);
-  const isTransitioning = useRef(false);
   const gridWidth = useMemo(
     () => Math.max(1, width - CALENDAR_HORIZONTAL_PADDING * 2),
     [width],
@@ -150,7 +73,6 @@ const CalendarScreen: React.FC = () => {
 
   useLayoutEffect(() => {
     scrollToCenter(false);
-    isTransitioning.current = false;
   }, [currentMonth, scrollToCenter]);
 
   const gridHeight = useMemo(() => CALENDAR_ROWS * ROW_HEIGHT, []);
@@ -187,9 +109,53 @@ const CalendarScreen: React.FC = () => {
     [handleDeleteCompletion],
   );
 
+  const renderCalendarPage = useCallback(
+    (cells: CalendarCell[], keyPrefix: string) =>
+      cells.map((cell) => {
+        const key = `${keyPrefix}-${cell.key}`;
+        if (!cell.date) {
+          return <View key={key} style={[styles.dayCell, styles.dayCellEmpty]} />;
+        }
+
+        const cellDate = cell.date;
+        const dayKey = toDateKey(cellDate);
+        const isSelected = dayKey === selectedKey;
+        const isToday = dayKey === todayKey;
+        const completionsForDay = completionsByDay.get(dayKey) ?? [];
+        const hasCompletion = completionsForDay.length > 0;
+
+        return (
+          <Pressable key={key} onPress={() => handleSelectDate(cellDate)} style={styles.dayCell}>
+            {({ pressed }) => (
+              <View
+                style={[
+                  styles.dayBubble,
+                  hasCompletion ? styles.dayBubbleHighlighted : undefined,
+                  isSelected ? styles.dayBubbleSelected : undefined,
+                  isToday ? styles.dayBubbleToday : undefined,
+                  pressed ? styles.dayBubblePressed : undefined,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.dayText,
+                    hasCompletion ? styles.dayTextHighlighted : undefined,
+                    isSelected ? styles.dayTextSelected : undefined,
+                  ]}
+                >
+                  {cellDate.getDate()}
+                </Text>
+              </View>
+            )}
+          </Pressable>
+        );
+      }),
+    [completionsByDay, handleSelectDate, selectedKey, todayKey],
+  );
+
   const handleGridMomentumEnd = useCallback(
     (offsetX: number) => {
-      if (!gridWidth || isTransitioning.current) {
+      if (!gridWidth) {
         return;
       }
       const page = Math.round(offsetX / gridWidth);
@@ -197,25 +163,18 @@ const CalendarScreen: React.FC = () => {
         return;
       }
       const delta = page === 2 ? 1 : -1;
-      isTransitioning.current = true;
-      InteractionManager.runAfterInteractions(() => {
-        handleShiftMonth(delta);
-      });
+      handleShiftMonth(delta);
     },
     [gridWidth, handleShiftMonth],
   );
 
   const handleMonthNav = useCallback(
     (delta: number) => {
-      if (isTransitioning.current) {
-        return;
-      }
       if (!gridScrollRef.current || !gridWidth) {
         handleShiftMonth(delta);
         return;
       }
 
-      isTransitioning.current = true;
       const targetPage = delta > 0 ? 2 : 0;
       gridScrollRef.current.scrollTo({ x: targetPage * gridWidth, animated: true });
     },
@@ -298,26 +257,19 @@ const CalendarScreen: React.FC = () => {
             showsHorizontalScrollIndicator={false}
             bounces={false}
             scrollEventThrottle={16}
-            removeClippedSubviews
             onMomentumScrollEnd={(event) => handleGridMomentumEnd(event.nativeEvent.contentOffset.x)}
           >
             <View style={styles.gridTrack}>
               {calendarPages.map((page) => (
-                <CalendarPage
-                  key={page.key}
-                  cells={page.cells}
-                  selectedKey={selectedKey}
-                  todayKey={todayKey}
-                  completionsByDay={completionsByDay}
-                  onSelectDate={handleSelectDate}
-                  style={gridPageStyle}
-                />
+                <View key={page.key} style={gridPageStyle}>
+                  {renderCalendarPage(page.cells, page.key)}
+                </View>
               ))}
             </View>
           </ScrollView>
         </View>
       </View>
-
+      
       <View style={styles.detailSection}>
         <View style={styles.detailCard}>
           {selectedCompletions.length === 0 ? (
@@ -537,3 +489,7 @@ const styles = StyleSheet.create({
 });
 
 export default CalendarScreen;
+
+
+
+
