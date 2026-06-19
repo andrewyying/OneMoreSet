@@ -35,7 +35,6 @@ const navigationTheme = {
 const MainTabs: React.FC = () => (
   <Tab.Navigator
     screenOptions={({ route }) => ({
-      lazy: false,
       headerShown: false,
       tabBarActiveTintColor: 'rgba(15, 23, 42, 0.93)',
       tabBarInactiveTintColor: '#94a3b8',

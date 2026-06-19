@@ -10,7 +10,7 @@ import {
 import { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import { CompositeScreenProps } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useWindowDimensions } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 
@@ -74,6 +74,7 @@ const ScheduleListItem: React.FC<ScheduleListItemProps> = React.memo(({ schedule
 const ItemSeparator = () => <View style={styles.separator} />;
 
 const ScheduleListScreen: React.FC<Props> = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
   const { schedules } = useSchedules();
   const { width } = useWindowDimensions();
   const isNarrow = width < 380;
@@ -124,7 +125,7 @@ const ScheduleListScreen: React.FC<Props> = ({ navigation }) => {
   );
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={[styles.safeArea, { paddingTop: insets.top }]}>
       <View style={[styles.header, isNarrow && styles.headerNarrow]}>
         <View style={styles.headerText}>
           <Text style={styles.title}>My Workouts</Text>
@@ -158,7 +159,7 @@ const ScheduleListScreen: React.FC<Props> = ({ navigation }) => {
           </View>
         }
       />
-    </SafeAreaView>
+    </View>
   );
 };
 

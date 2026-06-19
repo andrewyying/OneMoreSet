@@ -3,7 +3,7 @@ import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'r
 import { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import { CompositeScreenProps } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FontAwesome6, MaterialIcons } from '@expo/vector-icons';
 import { useCompletions } from '../store/completions';
 import { MainTabParamList, RootStackParamList } from '../types/navigation';
@@ -100,6 +100,7 @@ const SETTINGS_SECTIONS: SettingSection[] = [
 ];
 
 const SettingsScreen: React.FC<Props> = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
   const { clearCompletions, completions } = useCompletions();
 
   const handleConfirmClearWorkoutHistory = useCallback(() => {
@@ -192,7 +193,7 @@ const SettingsScreen: React.FC<Props> = ({ navigation }) => {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <Text style={styles.title}>Settings</Text>
@@ -227,7 +228,7 @@ const SettingsScreen: React.FC<Props> = ({ navigation }) => {
           </View>
         ))}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 };
 

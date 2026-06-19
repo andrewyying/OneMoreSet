@@ -9,7 +9,7 @@ import {
   View,
   useWindowDimensions,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 
 import CompletionCard from '../components/CompletionCard';
@@ -33,6 +33,7 @@ const ROW_HEIGHT = DAY_CELL_HEIGHT + DAY_CELL_MARGIN_BOTTOM;
 const getCompletionCount = (list: WorkoutCompletion[]) => list.length;
 
 const CalendarScreen: React.FC = () => {
+  const insets = useSafeAreaInsets();
   const { completions, status, error, deleteCompletion } = useCompletions();
   const { width } = useWindowDimensions();
   const {
@@ -182,29 +183,29 @@ const CalendarScreen: React.FC = () => {
 
   if (status === 'loading') {
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.emptyState}>
           <Text style={styles.title}>Calendar</Text>
           <Text style={styles.subtitle}>Loading your workouts...</Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   if (status === 'error') {
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.emptyState}>
           <Text style={styles.title}>Calendar</Text>
           <Text style={styles.subtitle}>Unable to load your workouts.</Text>
           {error ? <Text style={styles.detailText}>{error}</Text> : null}
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
         <View style={styles.headerText}>
           <Text style={styles.title}>Calendar</Text>
@@ -291,7 +292,7 @@ const CalendarScreen: React.FC = () => {
           )}
         </View>
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 
