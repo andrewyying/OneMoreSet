@@ -17,6 +17,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import Animated, { LinearTransition } from 'react-native-reanimated';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePreventRemove } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -88,7 +89,7 @@ const ScheduleEditorScreen: React.FC<Props> = ({ navigation, route }) => {
     () => getTotalDuration({ steps, restBetweenSec: restEnabled ? restBetweenSec : 0 }),
     [restBetweenSec, restEnabled, steps],
   );
-  const contentPaddingBottom = useMemo(() => 64 + insets.bottom + 220, [insets.bottom]);
+  const contentPaddingBottom = useMemo(() => insets.bottom + 24, [insets.bottom]);
 
   const buildDraftFromForm = useCallback((showValidationError: boolean): ScheduleDraft | null => {
     const sanitizedSteps = steps
@@ -353,11 +354,12 @@ const ScheduleEditorScreen: React.FC<Props> = ({ navigation, route }) => {
           />
         ))}
 
-        <PrimaryButton label="Add Step" onPress={addStep} style={styles.addButton} />
-        {isNewSchedule ? (
-          <PrimaryButton label="Create New Workout" onPress={handleCreateWorkout} style={styles.createButton} />
-        ) : null}
-        <View style={styles.footerSpace} />
+        <Animated.View layout={LinearTransition.duration(220)}>
+          <PrimaryButton label="Add Step" onPress={addStep} style={styles.addButton} />
+          {isNewSchedule ? (
+            <PrimaryButton label="Create New Workout" onPress={handleCreateWorkout} style={styles.createButton} />
+          ) : null}
+        </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -460,9 +462,6 @@ const styles = StyleSheet.create({
     marginLeft: 15,
     width: 100,
     flexShrink: 0,
-  },
-  footerSpace: {
-    height: 32,
   },
   deleteButton: {
     padding: 6,

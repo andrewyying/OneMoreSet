@@ -1,5 +1,5 @@
 ﻿import React from 'react';
-import { StyleProp, StyleSheet, Text, TouchableOpacity, ViewStyle } from 'react-native';
+import { Pressable, StyleProp, StyleSheet, Text, ViewStyle } from 'react-native';
 
 type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
 
@@ -23,11 +23,10 @@ const PrimaryButton: React.FC<Props> = ({ label, onPress, variant = 'primary', d
   const isGhost = variant === 'ghost';
 
   return (
-    <TouchableOpacity
+    <Pressable
       onPress={onPress}
       disabled={disabled}
-      activeOpacity={0.8}
-      style={[
+      style={({ pressed }) => [
         styles.base,
         {
           backgroundColor: colors.backgroundColor,
@@ -35,6 +34,7 @@ const PrimaryButton: React.FC<Props> = ({ label, onPress, variant = 'primary', d
         },
         isGhost && styles.ghostBorder,
         disabled && styles.disabled,
+        pressed && !disabled && styles.pressed,
         style,
       ]}
     >
@@ -47,7 +47,7 @@ const PrimaryButton: React.FC<Props> = ({ label, onPress, variant = 'primary', d
       >
         {label}
       </Text>
-    </TouchableOpacity>
+    </Pressable>
   );
 };
 
@@ -66,6 +66,9 @@ const styles = StyleSheet.create({
   },
   ghostBorder: {
     borderColor: '#d1d5db',
+  },
+  pressed: {
+    opacity: 0.8,
   },
   disabled: {
     opacity: 0.6,

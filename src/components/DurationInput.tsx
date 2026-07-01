@@ -9,6 +9,7 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Picker } from '@react-native-picker/picker';
 
 import { clampDuration } from '../lib/time';
@@ -30,6 +31,7 @@ const DurationInput: React.FC<Props> = ({
   onChange,
   style,
 }) => {
+  const insets = useSafeAreaInsets();
   const [textValue, setTextValue] = useState(String(value));
   const [pickerVisible, setPickerVisible] = useState(false);
   const [pickerValue, setPickerValue] = useState(value);
@@ -39,13 +41,19 @@ const DurationInput: React.FC<Props> = ({
     setPickerValue(value);
   }, [value]);
 
+  // Only build the (potentially thousands of) picker options while the sheet is
+  // open. Building them on every render — even when closed — is what made the
+  // form scroll and the modal feel laggy.
   const options = useMemo(() => {
+    if (!pickerVisible) {
+      return [];
+    }
     const list: number[] = [];
     for (let v = min; v <= max; v += 1) {
       list.push(v);
     }
     return list;
-  }, [max, min]);
+  }, [max, min, pickerVisible]);
 
   const adjust = (delta: number) => {
     const next = clampDuration(value + delta, min, max);
@@ -86,23 +94,26 @@ const DurationInput: React.FC<Props> = ({
         </Pressable>
       </View>
 
-      <Modal transparent animationType="fade" visible={pickerVisible} onRequestClose={closePicker}>
+      <Modal transparent animationType="slide" visible={pickerVisible} onRequestClose={closePicker}>
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={closePicker}>
-          <TouchableOpacity activeOpacity={1} style={styles.sheet}>
+          <TouchableOpacity activeOpacity={1} style={[styles.sheet, { paddingBottom: insets.bottom + 12 }]}>
+            <View style={styles.grabber} />
             <View style={styles.sheetHeader}>
               <Pressable onPress={closePicker} hitSlop={8}>
-                <Text style={styles.sheetAction}>Cancel</Text>
+                <Text style={styles.sheetCancel}>Cancel</Text>
               </Pressable>
-              <Text style={styles.sheetTitle}>Select</Text>
+              <Text style={styles.sheetTitle}>{label ?? 'Select'}</Text>
               <Pressable onPress={confirmPicker} hitSlop={8}>
-                <Text style={styles.sheetAction}>Set</Text>
+                <Text style={styles.sheetConfirm}>Set</Text>
               </Pressable>
             </View>
-            <Picker selectedValue={pickerValue} onValueChange={(val) => setPickerValue(Number(val))}>
-              {options.map((opt) => (
-                <Picker.Item key={opt} label={String(opt)} value={opt} />
-              ))}
-            </Picker>
+            {pickerVisible ? (
+              <Picker selectedValue={pickerValue} onValueChange={(val) => setPickerValue(Number(val))}>
+                {options.map((opt) => (
+                  <Picker.Item key={opt} label={String(opt)} value={opt} />
+                ))}
+              </Picker>
+            ) : null}
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
@@ -178,27 +189,41 @@ const styles = StyleSheet.create({
   },
   sheet: {
     backgroundColor: '#fff',
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 16,
+    paddingTop: 8,
+  },
+  grabber: {
+    alignSelf: 'center',
+    width: 36,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: '#cbd5e1',
+    marginBottom: 8,
   },
   sheetHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    paddingBottom: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#e2e8f0',
   },
   sheetTitle: {
     fontSize: 20,
     fontFamily: 'BebasNeue_400Regular',
     color: '#0f172a',
   },
-  sheetAction: {
+  sheetCancel: {
     fontSize: 19,
     fontFamily: 'BebasNeue_400Regular',
-    color: '#0ea5e9',
+    color: '#64748b',
+  },
+  sheetConfirm: {
+    fontSize: 19,
+    fontFamily: 'BebasNeue_400Regular',
+    color: 'rgba(15, 23, 42, 0.93)',
   },
 });
 

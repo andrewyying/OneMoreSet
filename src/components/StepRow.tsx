@@ -1,5 +1,6 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import Animated, { FadeIn, FadeOut, LinearTransition } from 'react-native-reanimated';
 import { MaterialIcons } from '@expo/vector-icons';
 
 import { Step } from '../types/models';
@@ -29,7 +30,12 @@ const StepRow: React.FC<Props> = ({
   };
 
   return (
-    <View style={styles.card}>
+    <Animated.View
+      style={styles.card}
+      entering={FadeIn.duration(220)}
+      exiting={FadeOut.duration(180)}
+      layout={LinearTransition.duration(220)}
+    >
       <View style={styles.header}>
         <Text style={styles.title}>Step {index + 1}</Text>
         <View style={styles.headerActions}>
@@ -80,7 +86,7 @@ const StepRow: React.FC<Props> = ({
         style={styles.duration}
       />
 
-    </View>
+    </Animated.View>
   );
 };
 
@@ -142,4 +148,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default StepRow;
+export default React.memo(StepRow);
