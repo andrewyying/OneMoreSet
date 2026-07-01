@@ -40,7 +40,8 @@
           "photosPermission": "Allow OneMoreSet to access your photos so you can attach bug screenshots."
         }
       ],
-      "./plugins/withLiveActivityFrequentUpdates"
+      "./plugins/withLiveActivityFrequentUpdates",
+      "react-native-bottom-tabs"
     ],
     "web": {
       "favicon": "./assets/favicon.png"

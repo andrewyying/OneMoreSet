@@ -1,9 +1,8 @@
 import React from 'react';
 import { DefaultTheme, NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createNativeBottomTabNavigator } from '@bottom-tabs/react-navigation';
 import { enableScreens } from 'react-native-screens';
-import { MaterialIcons } from '@expo/vector-icons';
 
 import PlayerScreen from '../screens/PlayerScreen';
 import WorkoutCompleteScreen from '../screens/WorkoutCompleteScreen';
@@ -22,7 +21,7 @@ import { MainTabParamList, RootStackParamList } from '../types/navigation';
 enableScreens();
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
-const Tab = createBottomTabNavigator<MainTabParamList>();
+const Tab = createNativeBottomTabNavigator<MainTabParamList>();
 const APP_FONT_FAMILY = 'BebasNeue_400Regular';
 
 const navigationTheme = {
@@ -38,29 +37,36 @@ const MainTabs: React.FC = () => {
 
   return (
     <Tab.Navigator
-      screenOptions={({ route }) => ({
-        headerShown: false,
-        tabBarActiveTintColor: 'rgba(15, 23, 42, 0.93)',
-        tabBarInactiveTintColor: '#94a3b8',
-        tabBarShowLabel: false,
-        tabBarIcon: ({ color, size }) => {
-          let icon: React.ComponentProps<typeof MaterialIcons>['name'];
-          if (route.name === 'ScheduleList') {
-            icon = 'list';
-          } else if (route.name === 'Calendar') {
-            icon = 'calendar-today';
-          } else {
-            icon = 'settings';
-          }
-          return <MaterialIcons name={icon} size={size} color={color} />;
-        },
-      })}
+      tabBarActiveTintColor="rgba(15, 23, 42, 0.93)"
+      tabBarInactiveTintColor="#94a3b8"
+      hapticFeedbackEnabled
     >
-      <Tab.Screen name="ScheduleList" component={ScheduleListScreen} options={{ title: 'Schedules' }} />
+      <Tab.Screen
+        name="ScheduleList"
+        component={ScheduleListScreen}
+        options={{
+          title: 'Schedules',
+          tabBarIcon: () => ({ sfSymbol: 'list.bullet' }),
+        }}
+      />
       {!preferences.hideCalendarTab ? (
-        <Tab.Screen name="Calendar" component={CalendarScreen} options={{ title: 'Calendar' }} />
+        <Tab.Screen
+          name="Calendar"
+          component={CalendarScreen}
+          options={{
+            title: 'Calendar',
+            tabBarIcon: () => ({ sfSymbol: 'calendar' }),
+          }}
+        />
       ) : null}
-      <Tab.Screen name="Settings" component={SettingsScreen} options={{ title: 'Settings' }} />
+      <Tab.Screen
+        name="Settings"
+        component={SettingsScreen}
+        options={{
+          title: 'Settings',
+          tabBarIcon: () => ({ sfSymbol: 'gearshape.fill' }),
+        }}
+      />
     </Tab.Navigator>
   );
 };

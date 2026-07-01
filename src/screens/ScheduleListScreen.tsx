@@ -7,7 +7,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
+import { NativeBottomTabScreenProps } from '@bottom-tabs/react-navigation';
 import { CompositeScreenProps } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -23,7 +23,7 @@ import { MainTabParamList, RootStackParamList } from '../types/navigation';
 import { Schedule } from '../types/models';
 
 type Props = CompositeScreenProps<
-  BottomTabScreenProps<MainTabParamList, 'ScheduleList'>,
+  NativeBottomTabScreenProps<MainTabParamList, 'ScheduleList'>,
   NativeStackScreenProps<RootStackParamList>
 >;
 
