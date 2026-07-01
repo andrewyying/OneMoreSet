@@ -4,10 +4,12 @@ export type StartCountdownSeconds = 0 | 3 | 5;
 
 export type Preferences = {
   startCountdownSeconds: StartCountdownSeconds;
+  hideCalendarTab: boolean;
 };
 
 export const DEFAULT_PREFERENCES: Preferences = {
   startCountdownSeconds: 3,
+  hideCalendarTab: false,
 };
 
 const PREFERENCES_STORAGE_KEY = '@workout_timer/preferences';
@@ -42,6 +44,10 @@ export async function loadPreferences(): Promise<Preferences> {
         parsed.startCountdownSeconds,
         parsed.startWithCountdown,
       ),
+      hideCalendarTab:
+        typeof parsed.hideCalendarTab === 'boolean'
+          ? parsed.hideCalendarTab
+          : DEFAULT_PREFERENCES.hideCalendarTab,
     };
   } catch (error) {
     console.warn('Failed to parse preferences', error);

@@ -1,14 +1,9 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import {
-  DEFAULT_PREFERENCES,
-  Preferences,
-  StartCountdownSeconds,
-  loadPreferences,
-  savePreferences,
-} from '../lib/preferences';
+import { StartCountdownSeconds } from '../lib/preferences';
+import { usePreferences } from '../store/preferences';
 
 const COUNTDOWN_OPTIONS: { label: string; value: StartCountdownSeconds }[] = [
   { label: 'Off', value: 0 },
@@ -17,69 +12,47 @@ const COUNTDOWN_OPTIONS: { label: string; value: StartCountdownSeconds }[] = [
 ];
 
 const PreferenceSettingsScreen: React.FC = () => {
-  const [preferences, setPreferences] = useState<Preferences>(DEFAULT_PREFERENCES);
-  const [isLoading, setIsLoading] = useState(true);
+  const { preferences, status, updatePreferences } = usePreferences();
   const [isSaving, setIsSaving] = useState(false);
-  const preferencesRef = useRef<Preferences>(DEFAULT_PREFERENCES);
-  const isSavingRef = useRef(false);
-
-  const syncPreferences = useCallback((nextPreferences: Preferences) => {
-    preferencesRef.current = nextPreferences;
-    setPreferences(nextPreferences);
-  }, []);
-
-  useEffect(() => {
-    let active = true;
-
-    loadPreferences()
-      .then((storedPreferences) => {
-        if (active) {
-          syncPreferences(storedPreferences);
-        }
-      })
-      .finally(() => {
-        if (active) {
-          setIsLoading(false);
-        }
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [syncPreferences]);
+  const isLoading = status === 'loading';
+  const isBusy = isLoading || isSaving;
 
   const handleSelectCountdown = useCallback(
     async (value: StartCountdownSeconds) => {
-      if (isLoading || isSavingRef.current) {
+      if (isBusy || preferences.startCountdownSeconds === value) {
         return;
       }
 
-      const previousPreferences = preferencesRef.current;
-      if (previousPreferences.startCountdownSeconds === value) {
-        return;
-      }
-
-      const nextPreferences: Preferences = {
-        ...previousPreferences,
-        startCountdownSeconds: value,
-      };
-
-      isSavingRef.current = true;
       setIsSaving(true);
-      syncPreferences(nextPreferences);
-
       try {
-        await savePreferences(nextPreferences);
+        await updatePreferences({ startCountdownSeconds: value });
       } catch (error) {
         console.warn('Failed to update preferences', error);
-        syncPreferences(previousPreferences);
         Alert.alert('Unable to Update Preference', 'Please try again.');
       } finally {
-        isSavingRef.current = false;
         setIsSaving(false);
       }
     },
-    [isLoading, syncPreferences],
+    [isBusy, preferences.startCountdownSeconds, updatePreferences],
+  );
+
+  const handleToggleHideCalendar = useCallback(
+    async (value: boolean) => {
+      if (isBusy || preferences.hideCalendarTab === value) {
+        return;
+      }
+
+      setIsSaving(true);
+      try {
+        await updatePreferences({ hideCalendarTab: value });
+      } catch (error) {
+        console.warn('Failed to update preferences', error);
+        Alert.alert('Unable to Update Preference', 'Please try again.');
+      } finally {
+        setIsSaving(false);
+      }
+    },
+    [isBusy, preferences.hideCalendarTab, updatePreferences],
   );
 
   return (
@@ -99,7 +72,7 @@ const PreferenceSettingsScreen: React.FC = () => {
                   <React.Fragment key={option.value}>
                     <Pressable
                       onPress={() => handleSelectCountdown(option.value)}
-                      disabled={isLoading || isSaving}
+                      disabled={isBusy}
                       style={({ pressed }) => [
                         styles.segment,
                         isSelected ? styles.segmentSelected : undefined,
@@ -115,6 +88,23 @@ const PreferenceSettingsScreen: React.FC = () => {
                 );
               })}
             </View>
+          </View>
+
+          <View style={styles.separator} />
+
+          <View style={styles.row}>
+            <View style={styles.rowText}>
+              <Text style={styles.rowTitle}>Hide calendar page</Text>
+              <Text style={styles.rowSubtitle}>Remove the calendar tab from the bottom bar.</Text>
+            </View>
+            <Switch
+              value={preferences.hideCalendarTab}
+              onValueChange={handleToggleHideCalendar}
+              disabled={isBusy}
+              trackColor={{ false: '#cbd5e1', true: '#0f172a' }}
+              thumbColor="#ffffff"
+              ios_backgroundColor="#cbd5e1"
+            />
           </View>
         </View>
       </ScrollView>
@@ -157,6 +147,16 @@ const styles = StyleSheet.create({
     fontSize: 19,
     fontFamily: 'BebasNeue_400Regular',
     color: '#0f172a',
+  },
+  rowSubtitle: {
+    marginTop: 2,
+    fontSize: 13,
+    color: '#64748b',
+  },
+  separator: {
+    height: 1,
+    marginHorizontal: 14,
+    backgroundColor: '#e2e8f0',
   },
   segmentedControl: {
     minWidth: 144,

@@ -16,6 +16,7 @@ import FeedbackFormScreen from '../screens/FeedbackFormScreen';
 import ReportIssueFormScreen from '../screens/ReportIssueFormScreen';
 import NotificationSettingsScreen from '../screens/NotificationSettingsScreen';
 import PreferenceSettingsScreen from '../screens/PreferenceSettingsScreen';
+import { usePreferences } from '../store/preferences';
 import { MainTabParamList, RootStackParamList } from '../types/navigation';
 
 enableScreens();
@@ -32,31 +33,37 @@ const navigationTheme = {
   },
 };
 
-const MainTabs: React.FC = () => (
-  <Tab.Navigator
-    screenOptions={({ route }) => ({
-      headerShown: false,
-      tabBarActiveTintColor: 'rgba(15, 23, 42, 0.93)',
-      tabBarInactiveTintColor: '#94a3b8',
-      tabBarShowLabel: false,
-      tabBarIcon: ({ color, size }) => {
-        let icon: React.ComponentProps<typeof MaterialIcons>['name'];
-        if (route.name === 'ScheduleList') {
-          icon = 'list';
-        } else if (route.name === 'Calendar') {
-          icon = 'calendar-today';
-        } else {
-          icon = 'settings';
-        }
-        return <MaterialIcons name={icon} size={size} color={color} />;
-      },
-    })}
-  >
-    <Tab.Screen name="ScheduleList" component={ScheduleListScreen} options={{ title: 'Schedules' }} />
-    <Tab.Screen name="Calendar" component={CalendarScreen} options={{ title: 'Calendar' }} />
-    <Tab.Screen name="Settings" component={SettingsScreen} options={{ title: 'Settings' }} />
-  </Tab.Navigator>
-);
+const MainTabs: React.FC = () => {
+  const { preferences } = usePreferences();
+
+  return (
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        headerShown: false,
+        tabBarActiveTintColor: 'rgba(15, 23, 42, 0.93)',
+        tabBarInactiveTintColor: '#94a3b8',
+        tabBarShowLabel: false,
+        tabBarIcon: ({ color, size }) => {
+          let icon: React.ComponentProps<typeof MaterialIcons>['name'];
+          if (route.name === 'ScheduleList') {
+            icon = 'list';
+          } else if (route.name === 'Calendar') {
+            icon = 'calendar-today';
+          } else {
+            icon = 'settings';
+          }
+          return <MaterialIcons name={icon} size={size} color={color} />;
+        },
+      })}
+    >
+      <Tab.Screen name="ScheduleList" component={ScheduleListScreen} options={{ title: 'Schedules' }} />
+      {!preferences.hideCalendarTab ? (
+        <Tab.Screen name="Calendar" component={CalendarScreen} options={{ title: 'Calendar' }} />
+      ) : null}
+      <Tab.Screen name="Settings" component={SettingsScreen} options={{ title: 'Settings' }} />
+    </Tab.Navigator>
+  );
+};
 
 const AppNavigator: React.FC = () => {
   return (

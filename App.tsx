@@ -6,15 +6,21 @@ import { BebasNeue_400Regular, useFonts } from '@expo-google-fonts/bebas-neue';
 
 import AppNavigator from './src/navigation/AppNavigator';
 import { CompletionProvider, useCompletions } from './src/store/completions';
+import { PreferencesProvider, usePreferences } from './src/store/preferences';
 import { ScheduleProvider, useSchedules } from './src/store/schedules';
 
 const AppStateGate: React.FC = () => {
   const { status: scheduleStatus, error: scheduleError } = useSchedules();
   const { status: completionStatus, error: completionError } = useCompletions();
+  const { status: preferencesStatus } = usePreferences();
   const hasError = scheduleStatus === 'error' || completionStatus === 'error';
   const errorMessage = [scheduleError, completionError].filter(Boolean).join('\n');
 
-  if (scheduleStatus === 'loading' || completionStatus === 'loading') {
+  if (
+    scheduleStatus === 'loading' ||
+    completionStatus === 'loading' ||
+    preferencesStatus === 'loading'
+  ) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" />
@@ -55,10 +61,12 @@ export default function App() {
   return (
     <ScheduleProvider>
       <CompletionProvider>
-        <SafeAreaProvider>
-          <StatusBar style="dark" />
-          <AppStateGate />
-        </SafeAreaProvider>
+        <PreferencesProvider>
+          <SafeAreaProvider>
+            <StatusBar style="dark" />
+            <AppStateGate />
+          </SafeAreaProvider>
+        </PreferencesProvider>
       </CompletionProvider>
     </ScheduleProvider>
   );
