@@ -1,5 +1,6 @@
 import React, { useCallback } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 
 import { formatTimeLabel } from '../lib/date';
 import { WorkoutCompletion } from '../types/models';
@@ -7,9 +8,10 @@ import { WorkoutCompletion } from '../types/models';
 type CompletionCardProps = {
   completion: WorkoutCompletion;
   onDelete: (id: string) => void;
+  onEdit?: (completion: WorkoutCompletion) => void;
 };
 
-const CompletionCard: React.FC<CompletionCardProps> = React.memo(({ completion, onDelete }) => {
+const CompletionCard: React.FC<CompletionCardProps> = React.memo(({ completion, onDelete, onEdit }) => {
   const confirmDelete = useCallback(() => {
     Alert.alert('Delete workout?', 'Remove this workout from your history?', [
       { text: 'Cancel', style: 'cancel' },
@@ -21,6 +23,10 @@ const CompletionCard: React.FC<CompletionCardProps> = React.memo(({ completion, 
     ]);
   }, [completion.id, onDelete]);
 
+  const handlePress = useCallback(() => {
+    onEdit?.(completion);
+  }, [completion, onEdit]);
+
   const completionCardStyle = useCallback(
     ({ pressed }: { pressed: boolean }) => [
       styles.completionCard,
@@ -30,7 +36,12 @@ const CompletionCard: React.FC<CompletionCardProps> = React.memo(({ completion, 
   );
 
   return (
-    <Pressable onLongPress={confirmDelete} delayLongPress={450} style={completionCardStyle}>
+    <Pressable
+      onPress={onEdit ? handlePress : undefined}
+      onLongPress={confirmDelete}
+      delayLongPress={450}
+      style={completionCardStyle}
+    >
       <View style={styles.completionAccent} />
       <View style={styles.completionContent}>
         <View style={styles.completionHeader}>
@@ -39,6 +50,7 @@ const CompletionCard: React.FC<CompletionCardProps> = React.memo(({ completion, 
           </Text>
           <View style={styles.completionActions}>
             <Text style={styles.completionTime}>{formatTimeLabel(completion.completedAt)}</Text>
+            {onEdit ? <MaterialIcons name="chevron-right" size={18} color="#cbd5e1" /> : null}
           </View>
         </View>
       </View>
@@ -69,7 +81,7 @@ const styles = StyleSheet.create({
   },
   completionHeader: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     justifyContent: 'space-between',
   },
   completionTitle: {
@@ -80,7 +92,8 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   completionActions: {
-    alignItems: 'flex-end',
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   completionTime: {
     fontSize: 15,

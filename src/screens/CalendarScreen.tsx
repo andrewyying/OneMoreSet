@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+﻿import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   FlatList,
   ListRenderItem,
@@ -13,8 +13,16 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 
 import CompletionCard from '../components/CompletionCard';
+import ManualWorkoutSheet from '../components/ManualWorkoutSheet';
 import { CALENDAR_ROWS, CalendarCell } from '../lib/calendar';
-import { formatMonthLabel, startOfDay, startOfMonth, toDateKey } from '../lib/date';
+import {
+  combineDayAndTime,
+  formatLongDate,
+  formatMonthLabel,
+  startOfDay,
+  startOfMonth,
+  toDateKey,
+} from '../lib/date';
 import { useCalendar } from '../hooks/useCalendar';
 import { useCompletions } from '../store/completions';
 import { WorkoutCompletion } from '../types/models';
@@ -34,7 +42,14 @@ const getCompletionCount = (list: WorkoutCompletion[]) => list.length;
 
 const CalendarScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
-  const { completions, status, error, deleteCompletion } = useCompletions();
+  const {
+    completions,
+    status,
+    error,
+    deleteCompletion,
+    addManualCompletion,
+    updateCompletion,
+  } = useCompletions();
   const { width } = useWindowDimensions();
   const {
     today,
@@ -91,6 +106,49 @@ const CalendarScreen: React.FC = () => {
     [deleteCompletion],
   );
 
+  const [sheetVisible, setSheetVisible] = useState(false);
+  const [editingCompletion, setEditingCompletion] = useState<WorkoutCompletion | null>(null);
+
+  const isFutureDay = useMemo(
+    () => startOfDay(selectedDate).getTime() > startOfDay(today).getTime(),
+    [selectedDate, today],
+  );
+
+  const openAddSheet = useCallback(() => {
+    setEditingCompletion(null);
+    setSheetVisible(true);
+  }, []);
+
+  const openEditSheet = useCallback((completion: WorkoutCompletion) => {
+    setEditingCompletion(completion);
+    setSheetVisible(true);
+  }, []);
+
+  const closeSheet = useCallback(() => {
+    setSheetVisible(false);
+    setEditingCompletion(null);
+  }, []);
+
+  const handleSubmitEntry = useCallback(
+    ({ name, hours, minutes }: { name: string; hours: number; minutes: number }) => {
+      const completedAt = combineDayAndTime(selectedDate, hours, minutes);
+      if (editingCompletion) {
+        updateCompletion(editingCompletion.id, { scheduleName: name, completedAt });
+      } else {
+        addManualCompletion({ scheduleName: name, completedAt });
+      }
+      closeSheet();
+    },
+    [addManualCompletion, closeSheet, editingCompletion, selectedDate, updateCompletion],
+  );
+
+  const handleDeleteFromSheet = useCallback(() => {
+    if (editingCompletion) {
+      deleteCompletion(editingCompletion.id);
+    }
+    closeSheet();
+  }, [closeSheet, deleteCompletion, editingCompletion]);
+
   const gridPageStyle = useMemo(() => [styles.gridPage, { width: gridWidth }], [gridWidth]);
   const gridWrapperStyle = useMemo(() => [styles.gridWrapper, { height: gridHeight }], [gridHeight]);
   const currentStreakDays = useMemo(() => {
@@ -105,8 +163,10 @@ const CalendarScreen: React.FC = () => {
     return streakDays;
   }, [completionsByDay, today]);
   const renderCompletionItem = useCallback<ListRenderItem<WorkoutCompletion>>(
-    ({ item }) => <CompletionCard completion={item} onDelete={handleDeleteCompletion} />,
-    [handleDeleteCompletion],
+    ({ item }) => (
+      <CompletionCard completion={item} onDelete={handleDeleteCompletion} onEdit={openEditSheet} />
+    ),
+    [handleDeleteCompletion, openEditSheet],
   );
 
   const renderCalendarPage = useCallback(
@@ -272,26 +332,57 @@ const CalendarScreen: React.FC = () => {
       
       <View style={styles.detailSection}>
         <View style={styles.detailCard}>
+          <View style={styles.detailHeaderRow}>
+            <View style={styles.detailHeaderText}>
+              <Text style={styles.detailDay}>{formatLongDate(selectedDate)}</Text>
+              {selectedCompletions.length > 0 ? (
+                <Text style={styles.detailSubtitle}>
+                  {getCompletionCount(selectedCompletions)} workout
+                  {selectedCompletions.length === 1 ? '' : 's'}
+                </Text>
+              ) : null}
+            </View>
+            {!isFutureDay ? (
+              <Pressable
+                onPress={openAddSheet}
+                hitSlop={8}
+                style={({ pressed }) => [styles.addEntryButton, pressed ? styles.addEntryButtonPressed : undefined]}
+              >
+                <MaterialIcons name="add" size={18} color="rgba(15, 23, 42, 0.93)" />
+                <Text style={styles.addEntryText}>Add</Text>
+              </Pressable>
+            ) : null}
+          </View>
+
           {selectedCompletions.length === 0 ? (
-            <Text style={styles.detailEmpty}>No workouts logged for this day.</Text>
+            <Text style={styles.detailEmpty}>
+              {isFutureDay
+                ? "You can't log a workout for a future day."
+                : 'No workouts logged for this day yet.'}
+            </Text>
           ) : (
-            <>
-              <Text style={styles.detailSubtitle}>
-                {getCompletionCount(selectedCompletions)} workout
-                {selectedCompletions.length === 1 ? '' : 's'}
-              </Text>
-              <FlatList
-                data={selectedCompletions}
-                keyExtractor={(item) => item.id}
-                renderItem={renderCompletionItem}
-                style={styles.completionList}
-                contentContainerStyle={styles.completionListContent}
-                showsVerticalScrollIndicator={false}
-              />
-            </>
+            <FlatList
+              data={selectedCompletions}
+              keyExtractor={(item) => item.id}
+              renderItem={renderCompletionItem}
+              style={styles.completionList}
+              contentContainerStyle={styles.completionListContent}
+              showsVerticalScrollIndicator={false}
+            />
           )}
         </View>
       </View>
+
+      <ManualWorkoutSheet
+        visible={sheetVisible}
+        mode={editingCompletion ? 'edit' : 'add'}
+        dayLabel={formatLongDate(selectedDate)}
+        initialName={editingCompletion?.scheduleName}
+        initialTimestamp={editingCompletion?.completedAt}
+        onCancel={closeSheet}
+        onSubmit={handleSubmitEntry}
+        onDelete={handleDeleteFromSheet}
+      />
     </View>
   );
 };
@@ -462,12 +553,45 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 0,
   },
+  detailHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  detailHeaderText: {
+    flex: 1,
+    marginRight: 12,
+  },
+  detailDay: {
+    fontSize: 20,
+    fontFamily: 'BebasNeue_400Regular',
+    color: '#0f172a',
+  },
   detailSubtitle: {
+    marginTop: 2,
     fontSize: 16,
     fontFamily: 'BebasNeue_400Regular',
     color: '#475569',
   },
+  addEntryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    paddingVertical: 6,
+    paddingLeft: 6,
+    backgroundColor: 'transparent',
+  },
+  addEntryButtonPressed: {
+    opacity: 0.6,
+  },
+  addEntryText: {
+    fontSize: 16,
+    fontFamily: 'BebasNeue_400Regular',
+    color: 'rgba(15, 23, 42, 0.93)',
+  },
   detailEmpty: {
+    marginTop: 10,
     fontSize: 16,
     fontFamily: 'BebasNeue_400Regular',
     color: '#64748b',

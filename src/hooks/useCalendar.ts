@@ -48,7 +48,8 @@ export const useCalendar = (completions: WorkoutCompletion[]) => {
       }
     });
     map.forEach((items) => {
-      items.sort((a, b) => b.completedAt - a.completedAt);
+      // Chronological order within a day (earliest finish time first).
+      items.sort((a, b) => a.completedAt - b.completedAt);
     });
     return map;
   }, [completions]);

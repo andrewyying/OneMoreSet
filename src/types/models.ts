@@ -30,5 +30,7 @@ export type WorkoutCompletion = {
   steps: Step[];
   restBetweenSec: number;
   completedAt: number;
+  /** True for entries logged by hand from the calendar (no timed steps). */
+  manual?: boolean;
 };
 

@@ -55,12 +55,15 @@ const sanitizeCompletion = (
   completion: Partial<WorkoutCompletion>,
   fallbackIndex = 0,
 ): WorkoutCompletion | null => {
+  const isManual = completion.manual === true;
   const rawSteps = Array.isArray(completion.steps) ? completion.steps : [];
   const steps = rawSteps
     .map((step, index) => sanitizeStep(step as Step, index))
     .filter((step) => step.durationSec >= 1);
 
-  if (!steps.length) {
+  // Timed workouts must have at least one real step; manually logged entries
+  // (added from the calendar) legitimately have none.
+  if (!steps.length && !isManual) {
     return null;
   }
 
@@ -83,6 +86,7 @@ const sanitizeCompletion = (
       typeof completion.completedAt === 'number' && Number.isFinite(completion.completedAt)
         ? completion.completedAt
         : Date.now(),
+    ...(isManual ? { manual: true as const } : {}),
   };
 };
 
@@ -97,11 +101,20 @@ const sanitizeCompletionList = (data: unknown): WorkoutCompletion[] => {
     .sort((a, b) => b.completedAt - a.completedAt);
 };
 
+type ManualCompletionInput = {
+  scheduleName: string;
+  completedAt: number;
+};
+
+type CompletionEdit = Partial<Pick<WorkoutCompletion, 'scheduleName' | 'completedAt'>>;
+
 type ContextValue = {
   completions: WorkoutCompletion[];
   status: CompletionsStatus;
   error?: string;
   recordCompletion: (completion: Omit<WorkoutCompletion, 'id'>) => string | null;
+  addManualCompletion: (entry: ManualCompletionInput) => string | null;
+  updateCompletion: (id: string, patch: CompletionEdit) => void;
   deleteCompletion: (id: string) => void;
   clearCompletions: () => void;
   reload: () => Promise<void>;
@@ -185,6 +198,41 @@ export const CompletionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     [state.status],
   );
 
+  const addManualCompletion = useCallback(
+    (entry: ManualCompletionInput) =>
+      recordCompletion({
+        scheduleId: generateId('manual'),
+        scheduleName: entry.scheduleName,
+        steps: [],
+        restBetweenSec: 0,
+        completedAt: entry.completedAt,
+        manual: true,
+      }),
+    [recordCompletion],
+  );
+
+  const updateCompletion = useCallback(
+    (id: string, patch: CompletionEdit) => {
+      if (state.status !== 'ready') {
+        return;
+      }
+
+      dispatch({
+        type: 'update',
+        updater: (current) =>
+          current
+            .map((completion) => {
+              if (completion.id !== id) {
+                return completion;
+              }
+              return sanitizeCompletion({ ...completion, ...patch }) ?? completion;
+            })
+            .sort((a, b) => b.completedAt - a.completedAt),
+      });
+    },
+    [state.status],
+  );
+
   const deleteCompletion = useCallback(
     (id: string) => {
       if (state.status !== 'ready') {
@@ -226,11 +274,23 @@ export const CompletionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       status: state.status,
       error: state.error,
       recordCompletion,
+      addManualCompletion,
+      updateCompletion,
       deleteCompletion,
       clearCompletions,
       reload,
     }),
-    [clearCompletions, deleteCompletion, recordCompletion, reload, state.completions, state.error, state.status],
+    [
+      addManualCompletion,
+      clearCompletions,
+      deleteCompletion,
+      recordCompletion,
+      reload,
+      state.completions,
+      state.error,
+      state.status,
+      updateCompletion,
+    ],
   );
 
   return <CompletionContext.Provider value={value}>{children}</CompletionContext.Provider>;

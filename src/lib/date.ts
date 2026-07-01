@@ -31,3 +31,7 @@ export const formatLongDate = (date: Date) =>
 
 export const formatTimeLabel = (value: number) =>
   new Date(value).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+
+/** Builds a timestamp for a given calendar day at a specific hour/minute (local time). */
+export const combineDayAndTime = (day: Date, hours: number, minutes: number) =>
+  new Date(day.getFullYear(), day.getMonth(), day.getDate(), hours, minutes, 0, 0).getTime();
